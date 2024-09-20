@@ -135,9 +135,9 @@ void print_chat_messages(ChatNode *head) {
             printf("%s", node->msg->user);
             printf(" %s", node->msg->room);
             for (size_t i = 0; i < node->msg->nTopics; i++) {
-                printf(" %s", node->msg->topics[i]);
+                printf(" %s ", node->msg->topics[i]);
             }
-            printf("\n %s\n", node->msg->message);
+            printf("\n%s", node->msg->message);
         }
     }
 

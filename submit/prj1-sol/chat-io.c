@@ -152,7 +152,8 @@ chat_io(const char *prompt, FILE *in, FILE *out, FILE *err)
     while ((msgArgs = read_msg_args(in, msgArgs, &errNUm)) != NULL) {
         // fprintf(out, " msg is as read please check \n %s \n argvalue =-%zu ", msgArgs->msg, msgArgs->nArgs);
       
-           fprintf(out, "\n%s", prompt); 
+           fprintf(out, "%s", prompt); 
+           fflush(out);
             // printf("Argument %d: %s\n", 0 + 1, msgArgs->args[0]);
             if (strcmp(msgArgs->args[0], "+") == 0) {
 
@@ -211,14 +212,19 @@ chat_io(const char *prompt, FILE *in, FILE *out, FILE *err)
       
                     int count;
                     char *strpoint;
+                    int countArgs = 0 ;
+                    if(msgArgs->args[2][0] != '#'){
                     count = strtol(msgArgs->args[2], &strpoint, 10);
-                    if (*strpoint != '\0') {
-                        fprintf(err,"BAD_COUNT: bad COUNT arg '%c'\n", *strpoint);
-                        continue;
+                        if (*strpoint != '\0') {
+                            fprintf(err,"BAD_COUNT: bad COUNT arg '%c'\n", *strpoint);
+                            continue;
+                        }
+                    }else{
+                        countArgs++;
                     }
       
                       int topic_args;
-                        for(topic_args = 3 ; topic_args < msgArgs->nArgs; topic_args++){
+                        for(topic_args = 3 - countArgs ; topic_args < msgArgs->nArgs; topic_args++){
                             if(msgArgs->args[topic_args][0] != '#'){
                                 
                                 fprintf(err, "BAD_TOPIC: TOPIC does not start with a '#'.\n");
@@ -239,7 +245,6 @@ chat_io(const char *prompt, FILE *in, FILE *out, FILE *err)
              
                 } else {
              
-                    fprintf(out, "\n %s", prompt);
              
                 }
               
