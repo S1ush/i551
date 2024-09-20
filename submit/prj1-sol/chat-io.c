@@ -133,10 +133,151 @@
  *  not be cleaned up.
  *
  */
+// void 
+// add(const char *prompt , FILE *in , FILE *out){
+
+// }
+
+
+bool startsWithAlpha(const char *str) {
+    return str != NULL && isalpha((unsigned char)*str);
+}
 void
 chat_io(const char *prompt, FILE *in, FILE *out, FILE *err)
 {
+    fprintf(out, "%s", prompt);
+    ChatNode *chat = make_chat();
+    MsgArgs *msgArgs = NULL;
+    ErrNum errNUm;
+    while ((msgArgs = read_msg_args(in, msgArgs, &errNUm)) != NULL) {
+        // fprintf(out, " msg is as read please check \n %s \n argvalue =-%zu ", msgArgs->msg, msgArgs->nArgs);
+      
+           fprintf(out, "\n%s", prompt); 
+            // printf("Argument %d: %s\n", 0 + 1, msgArgs->args[0]);
+            if (strcmp(msgArgs->args[0], "+") == 0) {
+
+                int size_user = strlen(msgArgs->args[1]);
+                char *user = (char *)malloc(size_user+1);
+                 strcpy(user,msgArgs->args[1]);
+                
+                if(user[0] != '@'){
+                    fprintf(err,"BAD_USER:  USER not specified or USER does not start with '@'\n");
+                    continue;
+                }
+
+                if (msgArgs->msg == NULL || strcmp(msgArgs->msg, ".") == 0) {
+                    fprintf(err, "NO_MSG: missing message\n");
+                    continue;
+                }
+                const char *message;
+                message = strdup(msgArgs->msg);
+               //TODO : add to user to the storage 
+
+               //TODO : add room
+               char *room = (char *)malloc(strlen(msgArgs->args[2] + 1));
+                 strcpy(room, msgArgs->args[2]);
+               if(!startsWithAlpha(room)){
+                fprintf(err,"BAD_ROOM:  ROOM not specified or ROOM does not start with a alphabetic character.\n");
+                continue;
+               }
+               
+
+               //TODO : add topic to the room 
+               int topic_args;
+               for(topic_args = 3 ; topic_args < msgArgs->nArgs; topic_args++){
+                if(msgArgs->args[topic_args][0] != '#'){
+                    
+                    fprintf(err, "BAD_TOPIC: TOPIC does not start with a '#'.\n");
+                    continue;
+                }
+               }
+                int ntopics = msgArgs -> nArgs - 3 ;
+               char **topic[ntopics];
+               int i ;
+               for(topic_args = 3 ,  i =  0 ; topic_args < msgArgs->nArgs ; topic_args++, i++){
+                    topic[i] =(char *) malloc(strlen(msgArgs->args[topic_args]) + 1);
+                    strcpy(topic[i], msgArgs->args[topic_args]);
+               }
+
+         
+
+               add_chat(chat, user,room,topic,ntopics,message);
+               
+                    
+                } else if (strcmp(msgArgs->args[0], "?") == 0) {
+             
+    
+                    char *room = (char *)malloc(strlen(msgArgs->args[2] + 1));
+                    strcpy(room, msgArgs->args[1]);
+      
+                    int count;
+                    char *strpoint;
+                    count = strtol(msgArgs->args[2], &strpoint, 10);
+                    if (*strpoint != '\0') {
+                        fprintf(err,"BAD_COUNT: bad COUNT arg '%c'\n", *strpoint);
+                        continue;
+                    }
+      
+                      int topic_args;
+                        for(topic_args = 3 ; topic_args < msgArgs->nArgs; topic_args++){
+                            if(msgArgs->args[topic_args][0] != '#'){
+                                
+                                fprintf(err, "BAD_TOPIC: TOPIC does not start with a '#'.\n");
+                                continue;
+                            }
+                        }
+                            int ntopics = msgArgs -> nArgs - 2 ;
+                        char **topic[ntopics];
+                        int i ;
+                        for(topic_args = 3 ,  i =  0 ; topic_args < msgArgs->nArgs ; topic_args++, i++){
+                                topic[i] =(char *) malloc(strlen(msgArgs->args[topic_args]) + 1);
+                                strcpy(topic[i], msgArgs->args[topic_args]);
+                        }
+
+                    
+                    ChatNode *querry =  fetch_query_details(chat,room,topic,ntopics,count);
+                    print_chat_messages(querry);
+             
+                } else {
+             
+                    fprintf(out, "\n %s", prompt);
+             
+                }
+              
+        
+    
+    }
+
+
+
+
+
+
+    // char line[1024];
+    // int i;
+    //     fprintf(out, "\n %s", prompt);  // Print the prompt
+    // while (fgets(line, sizeof(line), in)) {
+    //      fprintf(out, "\n %s ", prompt);
+    //           if (strcmp(line, ".\n") == 0) {
+    //             exit(0);
+    //       }
+
+
+    //     if (line[0] == '+') {
+    //         fprintf(out, "insert to Linked list: %s  \n", line );
+    //         for(i = 0 ; line[i] != '\0' ; i++){
+    //           if(line)
+    //         }
+    //     } else if (line[0] == '?') {
+    //         fprintf(out,"Query finding the data ");
+    //     } else {
+    //       fprintf(out, " should free up the memeory");
+           
+    //     }
+    // }
+
 }
+
 
 //#define NO_CHAT_IO_MAIN to allow an alternate main()
 #ifndef NO_CHAT_IO_MAIN
