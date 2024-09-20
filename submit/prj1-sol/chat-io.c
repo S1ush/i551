@@ -200,8 +200,7 @@ chat_io(const char *prompt, FILE *in, FILE *out, FILE *err)
                }
 
          
-
-               add_chat(chat, user,room,topic,ntopics,message);
+                  add_chat(chat, user,room,topic,ntopics,message);
                
                     
                 } else if (strcmp(msgArgs->args[0], "?") == 0) {

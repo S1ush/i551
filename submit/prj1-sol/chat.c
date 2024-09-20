@@ -121,28 +121,37 @@ void print_chat_messages(ChatNode *head) {
         return;
     }
 
-    ChatNode *current = head->next;  // Start from the first actual message (head is a dummy node)
-    int count = 0;
-
-    while (current != NULL) {
-        count++;
-        printf("%s", current->msg->user);
-        printf(" %s", current->msg->room);
-        for (size_t i = 0; i < current->msg->nTopics; i++) {
-            printf(" %s", current->msg->topics[i]);
+    // Function to recursively print messages in reverse order
+    void print_reverse(ChatNode *node) {
+        if (node == NULL) {
+            return;
         }
-        printf("\n %s\n", current->msg->message);
-        current = current->next;
+        
+        // Recursively call for the next node
+        print_reverse(node->next);
+        
+        // Print the current node's message (if it's not the dummy head)
+        if (node->msg != NULL) {
+            printf("%s", node->msg->user);
+            printf(" %s", node->msg->room);
+            for (size_t i = 0; i < node->msg->nTopics; i++) {
+                printf(" %s", node->msg->topics[i]);
+            }
+            printf("\n %s\n", node->msg->message);
+        }
     }
 
-    if (count == 0) {
+    // Start the recursive printing from the first actual message
+    print_reverse(head->next);
+
+    // Check if any messages were printed
+    if (head->next == NULL) {
         printf("No chat messages found.\n");
-    } 
+    }
 }
 
 
 ChatNode* fetch_query_details(ChatNode* head, const char* room, const char **topics, size_t nTopics, int count) {
-
     if (!head || !room) {
         fprintf(stderr, "Invalid input parameters\n");
         return NULL;
@@ -155,29 +164,15 @@ ChatNode* fetch_query_details(ChatNode* head, const char* room, const char **top
     }
 
     ChatNode* current = head->next; // Start from the first actual message
-    ChatNode** matchedMessages = NULL;
     int matchedCount = 0;
     int actualCount = (count == 0) ? 1 : count; // If count is 0, we'll fetch just the last message
 
-
-    matchedMessages = malloc(actualCount * sizeof(ChatNode*));
-    if (!matchedMessages) {
-        fprintf(stderr, "Failed to allocate memory for matchedMessages\n");
-        free(result);
-        return NULL;
-    }
-
     bool anyTopicMatches = false;
 
-    // First pass: find all matching messages
+    // Single pass: find matching messages and add them to result in LIFO order
     while (current != NULL) {
         bool roomMatch = strcmp(current->msg->room, room) == 0;
         bool topicMatch = false;
-
-        for (size_t i = 0; i < current->msg->nTopics; i++) {
-            printf("%s ", current->msg->topics[i]);
-        }
-        printf("\n");
 
         // Check topics only if topics are provided and nTopics > 0
         if (nTopics > 0 && topics != NULL) {
@@ -192,78 +187,92 @@ ChatNode* fetch_query_details(ChatNode* head, const char* room, const char **top
             }
         }
 
-
         // Match condition: room must match, and (nTopics <= 0 or topicMatch)
         if (roomMatch && (nTopics <= 0 || topicMatch)) {
-            if (matchedCount < actualCount) {
-                matchedMessages[matchedCount++] = current;
-            } else {
-                // Shift the array to make room for the new match
-                for (int i = 0; i < actualCount - 1; i++) {
-                    matchedMessages[i] = matchedMessages[i + 1];
-                }
-                matchedMessages[actualCount - 1] = current;
+            ChatNode* newNode = malloc(sizeof(ChatNode));
+            if (!newNode) {
+                fprintf(stderr, "Failed to allocate memory for new node\n");
+                free_query_results(result);
+                return NULL;
+            }
+
+            newNode->msg = malloc(sizeof(_ChatMsg));
+            if (!newNode->msg) {
+                fprintf(stderr, "Failed to allocate memory for new message\n");
+                free(newNode);
+                free_query_results(result);
+                return NULL;
+            }
+
+            // Deep copy message details
+            newNode->msg->user = strdup(current->msg->user);
+            newNode->msg->room = strdup(current->msg->room);
+            newNode->msg->nTopics = current->msg->nTopics;
+            newNode->msg->topics = malloc(newNode->msg->nTopics * sizeof(char*));
+            for (size_t j = 0; j < newNode->msg->nTopics; j++) {
+                newNode->msg->topics[j] = strdup(current->msg->topics[j]);
+            }
+            newNode->msg->message = strdup(current->msg->message);
+
+            // Add the new node to the beginning of the result list (LIFO order)
+            newNode->next = result->next;
+            result->next = newNode;
+
+            matchedCount++;
+
+            // If we've reached the desired count, break the loop
+            if (matchedCount == actualCount) {
+                break;
             }
         }
 
         current = current->next;
     }
 
-
     // If no topic matches were found and nTopics > 0, retry with room-only matches
     if (matchedCount == 0 && nTopics > 0 && !anyTopicMatches) {
         current = head->next;
         while (current != NULL) {
             if (strcmp(current->msg->room, room) == 0) {
-                if (matchedCount < actualCount) {
-                    matchedMessages[matchedCount++] = current;
-                } else {
-                    for (int i = 0; i < actualCount - 1; i++) {
-                        matchedMessages[i] = matchedMessages[i + 1];
-                    }
-                    matchedMessages[actualCount - 1] = current;
+                ChatNode* newNode = malloc(sizeof(ChatNode));
+                if (!newNode) {
+                    fprintf(stderr, "Failed to allocate memory for new node\n");
+                    free_query_results(result);
+                    return NULL;
+                }
+
+                newNode->msg = malloc(sizeof(_ChatMsg));
+                if (!newNode->msg) {
+                    fprintf(stderr, "Failed to allocate memory for new message\n");
+                    free(newNode);
+                    free_query_results(result);
+                    return NULL;
+                }
+
+                // Deep copy message details
+                newNode->msg->user = strdup(current->msg->user);
+                newNode->msg->room = strdup(current->msg->room);
+                newNode->msg->nTopics = current->msg->nTopics;
+                newNode->msg->topics = malloc(newNode->msg->nTopics * sizeof(char*));
+                for (size_t j = 0; j < newNode->msg->nTopics; j++) {
+                    newNode->msg->topics[j] = strdup(current->msg->topics[j]);
+                }
+                newNode->msg->message = strdup(current->msg->message);
+
+                // Add the new node to the beginning of the result list (LIFO order)
+                newNode->next = result->next;
+                result->next = newNode;
+
+                matchedCount++;
+
+                // If we've reached the desired count, break the loop
+                if (matchedCount == actualCount) {
+                    break;
                 }
             }
             current = current->next;
         }
     }
-
-    // Second pass: create the result list with the last 'actualCount' matches
-    for (int i = matchedCount - 1; i >= 0; i--) {
-        ChatNode* newNode = malloc(sizeof(ChatNode));
-        if (!newNode) {
-            fprintf(stderr, "Failed to allocate memory for new node\n");
-            free(matchedMessages);
-            free_query_results(result);
-            return NULL;
-        }
-
-        newNode->msg = malloc(sizeof(_ChatMsg));
-        if (!newNode->msg) {
-            fprintf(stderr, "Failed to allocate memory for new message\n");
-            free(newNode);
-            free(matchedMessages);
-            free_query_results(result);
-            return NULL;
-        }
-
-        // Deep copy message details
-        newNode->msg->user = strdup(matchedMessages[i]->msg->user);
-        newNode->msg->room = strdup(matchedMessages[i]->msg->room);
-        newNode->msg->nTopics = matchedMessages[i]->msg->nTopics;
-        newNode->msg->topics = malloc(newNode->msg->nTopics * sizeof(char*));
-        for (size_t j = 0; j < newNode->msg->nTopics; j++) {
-            newNode->msg->topics[j] = strdup(matchedMessages[i]->msg->topics[j]);
-        }
-        newNode->msg->message = strdup(matchedMessages[i]->msg->message);
-
-        // Add the new node to the beginning of the result list
-        newNode->next = result->next;
-        result->next = newNode;
-
-    }
-
-    free(matchedMessages);
 
     if (matchedCount == 0) {
         fprintf(stderr, "No matching messages found\n");
