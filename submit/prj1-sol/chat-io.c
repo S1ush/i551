@@ -241,7 +241,7 @@ chat_io(const char *prompt, FILE *in, FILE *out, FILE *err)
 
                     
                     ChatNode *querry =  fetch_query_details(chat,room,topic,ntopics,count);
-                    print_chat_messages(querry);
+                    if(querry != NULL) print_chat_messages(querry);
              
                 } else {
              

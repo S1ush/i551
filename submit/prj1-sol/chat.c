@@ -135,7 +135,7 @@ void print_chat_messages(ChatNode *head) {
             printf("%s", node->msg->user);
             printf(" %s", node->msg->room);
             for (size_t i = 0; i < node->msg->nTopics; i++) {
-                printf(" %s ", node->msg->topics[i]);
+                printf(" %s", node->msg->topics[i]);
             }
             printf("\n%s", node->msg->message);
         }
@@ -149,6 +149,7 @@ void print_chat_messages(ChatNode *head) {
         printf("No chat messages found.\n");
     }
 }
+
 
 
 ChatNode* fetch_query_details(ChatNode* head, const char* room, const char **topics, size_t nTopics, int count) {
@@ -282,6 +283,10 @@ ChatNode* fetch_query_details(ChatNode* head, const char* room, const char **top
 
     return result;
 }
+
+  
+
+
 
 // Helper function to free the result of fetch_query_details
 void free_query_results(ChatNode* results) {
