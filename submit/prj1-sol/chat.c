@@ -146,7 +146,7 @@ void print_chat_messages(ChatNode *head) {
 
     // Check if any messages were printed
     if (head->next == NULL) {
-        printf("No chat messages found.\n");
+        // printf("No chat messages found.\n");
     }
 }
 
