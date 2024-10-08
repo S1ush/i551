@@ -34,7 +34,6 @@ int main(int argc, const char *argv[]) {
     if (rc == 0) do_chat_cmd(chat, &cmd);
     fprintf(out, "%s", prompt); fflush(out);
   }
-  if (argc > 1) fclose(in);
   cmd.type = END_CMD;
   do_chat_cmd(chat, &cmd);
   free_chat(chat);
