@@ -21,6 +21,11 @@
 
 // fill out ADT structure
 struct _Chat {
+    int client_to_server[2];  // Pipe for client to server communication
+    int server_to_client[2];  // Pipe for server to client communication
+    pid_t server_pid;            // PID of the server process
+    FILE *out;                   // Output stream for success responses
+    FILE *err;                   // Error stream for error messages
 };
 
 // prefix for all error messages
@@ -58,8 +63,47 @@ struct _Chat {
  */
 Chat *
 make_chat(const char *dbPath, FILE *out, FILE *err)
-{
-  return NULL;  //TODO
+{  
+  Chat *chat = malloc(sizeof(Chat));
+    if (!chat) {
+        fprintf(err, "%serror allocating memory\n", ERROR);
+        return NULL;
+    }
+      // Initialize pipes for IPC
+    if (pipe(chat->client_to_server) == -1 || pipe(chat->server_to_client) == -1) {
+        fprintf(err, "%spipe creation failed\n", ERROR);
+        free(chat);
+        return NULL;
+    }
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        // Fork failed
+        fprintf(err, "%sfork failed\n", ERROR);
+        close(chat->client_to_server[1]);
+        close(chat->client_to_server[0]);
+        close(chat->server_to_client[0]);
+        close(chat->server_to_client[1]);
+        free(chat);
+        return NULL;
+    } else if (pid == 0) {
+        // In the child (server) process
+        close(chat->client_to_server[1]);  // Close write end of client to server pipe in the server
+        close(chat->server_to_client[0]);  // Close read end of server to client pipe in the server
+        fprintf(err, "%sfork success 1\n", ERROR);
+        // do_server();
+        // do_server(chat->out, chat->server_to_client[1], dbPath);
+        do_server(chat->client_to_server[0], chat->server_to_client[1], dbPath);
+        fprintf(err, "%sfork success2\n", ERROR);
+          // Server process should exit after handling
+    }
+
+    chat->server_pid = pid;
+    close(chat->client_to_server[0]);  // Close read end of client to server pipe in the client
+    close(chat->server_to_client[1]);  // Close write end of server to client pipe in the client
+    chat->out = out;
+    chat->err = err;
+  return chat;  
 }
 
 
@@ -83,6 +127,35 @@ free_chat(Chat *chat)
 void
 do_chat_cmd(Chat *chat, const ChatCmd *cmd)
 {
+  // fprintf(chat->out, "Ch÷÷/÷s in here : %d ", cmd->type );
+   // Send command to server
+    if (write(chat->client_to_server[1], cmd, sizeof(ChatCmd)) <= 0) {
+        fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server\n");
+        return;
+    }
+
+    // Read and process response
+    char response[1024];
+    ssize_t n = read(chat->server_to_client[0], response, sizeof(response) - 1);
+    if (n < 0) {
+        fprintf(chat->err, ERROR "SYS_ERR: Failed to read server response\n");
+        return;
+    }
+    response[n] = '\0';
+
+    if (strncmp(response, "ok", 2) == 0) {
+        fprintf(chat->out, "%s", response);
+    } else if (strncmp(response, "err", 3) == 0) {
+        fprintf(chat->err, "%s", response);
+    } else {
+        fprintf(chat->err, ERROR "SYS_ERR: Invalid server response\n");
+    }
+
+    if (cmd->type == END_CMD) {
+        // Wait for server to exit
+        waitpid(chat->server_pid, NULL, 0);
+    }
+
   //TODO
 }
 
