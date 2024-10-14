@@ -34,30 +34,34 @@ typedef struct {
 void
 do_server(int from_client_fd, int to_client_fd, const char *dbPath)
 {   
-        // printf("problem at making chat_db");
+    // printf("\nproblem at making chat_db\n");
     Server server = { from_client_fd, to_client_fd,NULL};
     MakeChatDbResult result;
     if (make_chat_db(dbPath, &result) != 0) {
         // Handle error
-        error(result.err);
+        // error(result.err);
+        printf("Issues: Chat_Db not initailed \n %s \n",result.err);
         // write(to_client_fd, result.err, strlen(result.err));
         return;
     }
     
+    // printf("problem at making %s",result.chatDb);
     server.db = result.chatDb;
-    printf("problem at making %s",result.chatDb);
     while (1) {
         ChatCmd cmd;
-        if (read(from_client_fd, &cmd, sizeof(ChatCmd)) <= 0) {
+        if (read(from_client_fd, &cmd, sizeof(ChatCmd)+256) <= 0) {
+            printf("waiting for input");
             break; // Error or EOF
         }
+        printf("Printing User name: %d\n", cmd.type);
+        print_cmd(stdout,&cmd);
 
         switch (cmd.type) {
             case ADD_CMD:
-                handle_add_cmd(&server, &cmd.add);
+                handle_add_cmd(&server, &cmd);
                 break;
             case QUERY_CMD:
-                handle_query_cmd(&server, &cmd.query);
+                handle_query_cmd(&server, &cmd);
                 break;
             case END_CMD:
                 free_chat_db(server.db);

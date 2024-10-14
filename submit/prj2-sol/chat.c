@@ -90,7 +90,7 @@ make_chat(const char *dbPath, FILE *out, FILE *err)
         // In the child (server) process
         close(chat->client_to_server[1]);  // Close write end of client to server pipe in the server
         close(chat->server_to_client[0]);  // Close read end of server to client pipe in the server
-        fprintf(err, "%sfork success 1\n", ERROR);
+        // fprintf(err, "%sfork success 1\n", ERROR);
         // do_server();
         // do_server(chat->out, chat->server_to_client[1], dbPath);
         do_server(chat->client_to_server[0], chat->server_to_client[1], dbPath);
@@ -103,6 +103,7 @@ make_chat(const char *dbPath, FILE *out, FILE *err)
     close(chat->server_to_client[1]);  // Close write end of server to client pipe in the client
     chat->out = out;
     chat->err = err;
+    fflush(out);
   return chat;  
 }
 
@@ -129,14 +130,20 @@ do_chat_cmd(Chat *chat, const ChatCmd *cmd)
 {
   // fprintf(chat->out, "Ch÷÷/÷s in here : %d ", cmd->type );
    // Send command to server
+
+    print_cmd(chat->out,cmd);
+    fprintf(chat->out, "printing chatcmd : %zu\n", sizeof(ChatCmd));
+    fprintf(chat->out, "printing cmd : %zu\n", sizeof(cmd));
+
     if (write(chat->client_to_server[1], cmd, sizeof(ChatCmd)) <= 0) {
         fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server\n");
         return;
     }
+    close(chat->client_to_server[1]);
 
     // Read and process response
     char response[1024];
-    ssize_t n = read(chat->server_to_client[0], response, sizeof(response) - 1);
+    ssize_t n = read(chat->server_to_client[0], &response, sizeof(response) - 1);
     if (n < 0) {
         fprintf(chat->err, ERROR "SYS_ERR: Failed to read server response\n");
         return;
@@ -164,5 +171,6 @@ pid_t
 chat_server_pid(const Chat *chat)
 {
   //TODO
-  return 0;
+  pid_t pid = getpid();
+  return pid;
 }
