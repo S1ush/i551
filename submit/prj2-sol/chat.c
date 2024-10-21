@@ -1,6 +1,7 @@
 #include "chat.h"
 #include "common.h"
 #include "server.h"
+#include "str-space.h"
 
 #include <chat-cmd.h>
 #include <errors.h>
@@ -95,6 +96,7 @@ make_chat(const char *dbPath, FILE *out, FILE *err)
         // do_server(chat->out, chat->server_to_client[1], dbPath);
         do_server(chat->client_to_server[0], chat->server_to_client[1], dbPath);
         fprintf(err, "%sfork success2\n", ERROR);
+        // exit(0);
           // Server process should exit after handling
     }
 
@@ -118,7 +120,8 @@ free_chat(Chat *chat)
   //TODO
 }
 
-/** perform cmd using chat, writing response to chat's out/err
+
+/** perform cmd using chat, wri)ting response to chat's out/err
  *  streams.  It can be assumed that cmd is free of user errors except
  *  for unknown room/topic for QUERY commands.
  *
@@ -131,29 +134,43 @@ do_chat_cmd(Chat *chat, const ChatCmd *cmd)
   // fprintf(chat->out, "Ch÷÷/÷s in here : %d ", cmd->type );
    // Send command to server
 
-    print_cmd(chat->out,cmd);
-    fprintf(chat->out, "printing chatcmd : %zu\n", sizeof(ChatCmd));
-    fprintf(chat->out, "printing cmd : %zu\n", sizeof(cmd));
-
-    if (write(chat->client_to_server[1], cmd, sizeof(ChatCmd)) <= 0) {
-        fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server\n");
+  
+    // fprintf(chat->out,"is this even working");
+    StrSpace strSpace;
+     if (serialize_add_cmd(&cmd->add, &strSpace) != 0) {
+        fprintf(chat->err, "ERROR: Failed to serialize AddCmd.\n");
         return;
     }
-    close(chat->client_to_server[1]);
+      if((write(chat->client_to_server[1], &cmd->type, sizeof(CmdType))) <=  0){
+        fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server : type\n");
+        return;
+      }
+    const char *serialized_add = iter_str_space(&strSpace, NULL);
+     if (write(chat->client_to_server[1], serialized_add, strlen(serialized_add)) <= 0) {
+        fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server : add_data\n");
+        return;
+    }else{
+        // fprintf(chat->out, "sending serialised");
+    }
+
+    
+    // bool serialized = send_add_cmd(chat->client_to_server,&cmd->add);
 
     // Read and process response
+    // sleep(2);
     char response[1024];
-    ssize_t n = read(chat->server_to_client[0], &response, sizeof(response) - 1);
+    ssize_t n = read(chat->server_to_client[0], response, sizeof(response) - 1);
     if (n < 0) {
         fprintf(chat->err, ERROR "SYS_ERR: Failed to read server response\n");
         return;
     }
+    // fprintf(chat->out,"response : %s\n",response);
     response[n] = '\0';
 
     if (strncmp(response, "ok", 2) == 0) {
-        fprintf(chat->out, "%s", response);
+        fprintf(chat->out, "%s\n", response);
     } else if (strncmp(response, "err", 3) == 0) {
-        fprintf(chat->err, "%s", response);
+        fprintf(chat->err, "%s\n", response);
     } else {
         fprintf(chat->err, ERROR "SYS_ERR: Invalid server response\n");
     }
@@ -171,6 +188,52 @@ pid_t
 chat_server_pid(const Chat *chat)
 {
   //TODO
-  pid_t pid = getpid();
-  return pid;
+ return chat->server_pid;
 }
+
+
+// Random stuff 
+
+// static bool write_string(int fd, const char* str) {
+//     size_t len = strlen(str);
+//     if (write(fd, &len, sizeof(size_t)) != sizeof(size_t)) return false;
+//     if (write(fd, str, len) != len) return false;
+//     return true;
+// }
+
+// bool send_add_cmd(int fd, const AddCmd* cmd) {
+//     CmdType type = ADD_CMD;
+//     if (write(fd, &type, sizeof(CmdType)) != sizeof(CmdType)) return false;
+
+//     if (!write_string(fd, cmd->user)) return false;
+//     if (!write_string(fd, cmd->room)) return false;
+//     if (!write_string(fd, cmd->message)) return false;
+
+//     if (write(fd, &cmd->nTopics, sizeof(size_t)) != sizeof(size_t)) return false;
+
+//     for (size_t i = 0; i < cmd->nTopics; i++) {
+//         if (!write_string(fd, cmd->topics[i])) return false;
+//     }
+
+//     return true;
+// }
+
+// bool send_query_cmd(int fd, const QueryCmd* cmd) {
+//     CmdType type = QUERY_CMD;
+//     if (write(fd, &type, sizeof(CmdType)) != sizeof(CmdType)) return false;
+
+//     if (!write_string(fd, cmd->room)) return false;
+//     if (write(fd, &cmd->count, sizeof(size_t)) != sizeof(size_t)) return false;
+//     if (write(fd, &cmd->nTopics, sizeof(size_t)) != sizeof(size_t)) return false;
+
+//     for (size_t i = 0; i < cmd->nTopics; i++) {
+//         if (!write_string(fd, cmd->topics[i])) return false;
+//     }
+
+//     return true;
+// }
+
+// bool send_end_cmd(int fd) {
+//     CmdType type = END_CMD;
+//     return write(fd, &type, sizeof(CmdType)) == sizeof(CmdType);
+// }
