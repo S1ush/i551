@@ -137,48 +137,74 @@ do_chat_cmd(Chat *chat, const ChatCmd *cmd)
   
     // fprintf(chat->out,"is this even working");
     StrSpace strSpace;
-     if (serialize_add_cmd(&cmd->add, &strSpace) != 0) {
-        fprintf(chat->err, "ERROR: Failed to serialize AddCmd.\n");
-        return;
-    }
-      if((write(chat->client_to_server[1], &cmd->type, sizeof(CmdType))) <=  0){
-        fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server : type\n");
-        return;
+
+     if((write(chat->client_to_server[1], &cmd->type, sizeof(CmdType))) <=  0){
+            fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server : type\n");
+            return;
       }
-    const char *serialized_add = iter_str_space(&strSpace, NULL);
-     if (write(chat->client_to_server[1], serialized_add, strlen(serialized_add)) <= 0) {
-        fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server : add_data\n");
-        return;
-    }else{
-        // fprintf(chat->out, "sending serialised");
-    }
+    switch (cmd->type)
+    {
+    case ADD_CMD:{
+          if (serialize_add_cmd(&cmd->add, &strSpace) != 0) {
+            fprintf(chat->err, "ERROR: Failed to serialize AddCmd.\n");
+            return;
+        }
+         
+        const char *serialized_add = iter_str_space(&strSpace, NULL);
+        if (write(chat->client_to_server[1], serialized_add, strlen(serialized_add)) <= 0) {
+            fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server : add_data\n");
+            return;
+        }
 
+        
     
-    // bool serialized = send_add_cmd(chat->client_to_server,&cmd->add);
+      
+        if (cmd->type == END_CMD) {
+            // Wait for server to exit
+            waitpid(chat->server_pid, NULL, 0);
+        }
 
-    // Read and process response
-    // sleep(2);
-    char response[1024];
-    ssize_t n = read(chat->server_to_client[0], response, sizeof(response) - 1);
-    if (n < 0) {
-        fprintf(chat->err, ERROR "SYS_ERR: Failed to read server response\n");
-        return;
     }
-    // fprintf(chat->out,"response : %s\n",response);
-    response[n] = '\0';
+      /* code */
+      break;
+    
+    case QUERY_CMD:
 
-    if (strncmp(response, "ok", 2) == 0) {
-        fprintf(chat->out, "%s\n", response);
-    } else if (strncmp(response, "err", 3) == 0) {
-        fprintf(chat->err, "%s\n", response);
-    } else {
-        fprintf(chat->err, ERROR "SYS_ERR: Invalid server response\n");
+        if (serialize_query_cmd(&cmd->query, &strSpace) != 0) {
+            printf("Serialized QueryCmd: %s\n", strSpace.buf);
+        }
+
+        const char *serialized_querry = iter_str_space(&strSpace, NULL);
+        if (write(chat->client_to_server[1], serialized_querry, strlen(serialized_querry)) <= 0) {
+            fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server : add_data\n");
+            return;
+        }
+
+
+      break;
+    default:
+      break;
     }
 
-    if (cmd->type == END_CMD) {
-        // Wait for server to exit
-        waitpid(chat->server_pid, NULL, 0);
-    }
+
+      char response[1024];
+        ssize_t n = read(chat->server_to_client[0], response, sizeof(response) - 1);
+        if (n < 0) {
+            fprintf(chat->err, ERROR "SYS_ERR: Failed to read server response\n");
+            return;
+        }
+
+        response[n] = '\0';
+
+        if (strncmp(response, "ok", 2) == 0) {
+            fprintf(chat->out, "%s\n", response);
+        } else if (strncmp(response, "err", 3) == 0) {
+            fprintf(chat->err, "%s\n", response);
+        } else {
+            fprintf(chat->err, ERROR "SYS_ERR: Invalid server response\n");
+        }
+
+     
 
   //TODO
 }

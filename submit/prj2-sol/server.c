@@ -23,6 +23,7 @@ void do_server(int from_client_fd, int to_client_fd, const char *dbPath)
     ChatCmd cmd;
     CmdType type ;
     AddCmd addCmd;
+    QueryCmd QueryCmd;
     char buffer[BUFSIZ];
     MakeChatDbResult result;
     int res = -1;
@@ -47,12 +48,14 @@ void do_server(int from_client_fd, int to_client_fd, const char *dbPath)
         
         // printf("type : %d",type);
         // sleep(2);
-        switch (type) {
-            case ADD_CMD:     {
-                ssize_t n = read(from_client_fd, buffer, sizeof(buffer) - 1);
+
+           ssize_t n = read(from_client_fd, buffer, sizeof(buffer) - 1);
                 if(n <= 0){
                     printf("err reacving the data ");
                 }   
+        switch (type) {
+            case ADD_CMD:     {
+             
                 if (deserialize_add_cmd(buffer, &addCmd) != 0) {
                     printf( "err Failed to parse AddCmd\n");
                     continue;
@@ -63,7 +66,13 @@ void do_server(int from_client_fd, int to_client_fd, const char *dbPath)
                  }
                 break;
             case QUERY_CMD:
-                handle_query_cmd(&server, &cmd.query);
+
+                    if (deserialize_query_cmd(buffer, &QueryCmd) != 0) {
+                            printf( "err Failed to parse AddCmd\n");
+                            continue;
+                        }
+                  
+                res = handle_query_cmd(&server, &QueryCmd);
                 break;
             case END_CMD:
                 free_chat_db(server.db);
@@ -101,8 +110,121 @@ static int handle_add_cmd(Server *server, const AddCmd *addCmd) {
     return 0;
 }
 
-static int handle_query_cmd(Server *server, const QueryCmd *cmd) {
-    // TODO: Implement query logic
-    // For now, just send a placeholder response
-    // write(server->out_fd, "ok\n", 3);
+// Helper function to print each chat result (IterFn)
+// Helper function to print each chat result (IterFn)
+static int print_chat_info(const ChatInfo *chatInfo) {
+    if (!chatInfo ) {
+        return -1;  // Safety check: return error if pointers are invalid
+    }
+
+    // int out_fd = *(int *)ctx;  // Extract the file descriptor from the context
+
+    // Format the timestamp into ISO-8601 format
+    char timestamp[32];
+    timestamp_to_iso8601(chatInfo->timestamp, sizeof(timestamp), timestamp);
+
+    // Print chat message details to the client
+    printf( 
+        "User: %s\nRoom: %s\nMessage: %s\nTimestamp: %s\n", 
+        chatInfo->user, chatInfo->room, chatInfo->message, timestamp);
+
+    // Print topics if present
+    if (chatInfo->nTopics > 0) {
+        printf( "Topics:");
+        for (size_t i = 0; i < chatInfo->nTopics; ++i) {
+            printf( " %s", chatInfo->topics[i]);
+        }
+        printf( "\n");
+    }
+    printf( "-----\n");  // Separator between messages
+
+    return 0;  // Continue iterating
 }
+
+
+static int handle_query_cmd(Server *server, const QueryCmd *queryCmd) {
+    if (!server || !queryCmd || !server->db) {
+        dprintf(server->out_fd, "err: Invalid server state or query command\n");
+        return -1;
+    }
+
+    // Extract query details
+    const char *room = queryCmd->room;
+    size_t nTopics = queryCmd->nTopics;
+    const char **topics = queryCmd->topics;
+    size_t maxCount = queryCmd->count;
+
+    printf("Executing QUERY_CMD: room=%s, nTopics=%zu, count=%zu\n", 
+           room, nTopics, maxCount);
+
+    // Perform the database query with the callback `print_chat_info'
+    int *ctx;
+    int queryResult = query_chat_db(
+        server->db, room, nTopics, topics, maxCount, print_chat_info, &ctx
+    );
+
+    // Handle the result of the query
+    if (queryResult != 0) {
+        const char *error = error_chat_db(server->db);
+        dprintf(server->out_fd, "err: %s\n", error);
+        return -1;
+    }
+
+    return 0;  // Success
+}
+
+// int filter()
+
+
+// static int handle_query_cmd(Server *server, const QueryCmd *querycmd) {
+//     // TODO: Implement query logic
+//     // For now, just send a placeholder response
+//     // write(server->out_fd, "ok\n", 3);
+
+
+//     if (!server || !querycmd || !server->db) {  // Safety checks
+//         dprintf(server->out_fd, "err: Invalid server state or query command\n");
+//         return -1;
+//     }
+
+//     // if (querycmd == NULL) {
+//     //     dprintf(server->out_fd, "err: Invalid query command\n");
+//     //     return -1;
+//     // }
+
+//     const char *room = querycmd->room;
+//     size_t nTopics = querycmd->nTopics;
+//     const char **topics = querycmd->topics;
+//     size_t maxCount = querycmd->count;
+
+//     // Use StrSpace for dynamic error message handling
+//     StrSpace response;
+//     init_str_space(&response);
+
+//     // Perform the database query
+//     int result = query_chat_db(
+//         server->db, room, nTopics, topics, maxCount, print_chat_info, &server->out_fd
+//     );
+
+//     // Handle success or error
+//     if (result != 0) {
+//         const char *error = error_chat_db(server->db);
+//         append_sprintf_str_space(&response, "err: %s\n", error);
+//         dprintf(server->out_fd, "%s", iter_str_space(&response, NULL));
+//         // free_str_space(&response);
+//         return -1;
+//     } else {
+//         append_str_space(&response, "ok: Query completed\n");
+//         dprintf(server->out_fd, "%s", iter_str_space(&response, NULL));
+//     }
+
+//     printf("Received QUERY_CMD: room=%s, nTopics=%zu, count=%zu\n", 
+//         querycmd->room, querycmd->nTopics, querycmd->count);
+
+//     // Clean up
+//     // free_str_space(&response);
+//     return 0;
+
+// }
+
+
