@@ -112,32 +112,87 @@ static int handle_add_cmd(Server *server, const AddCmd *addCmd) {
 
 // Helper function to print each chat result (IterFn)
 // Helper function to print each chat result (IterFn)
-static int print_chat_info(const ChatInfo *chatInfo) {
-    if (!chatInfo ) {
-        return -1;  // Safety check: return error if pointers are invalid
-    }
+// static int print_chat_info(const ChatInfo *chatInfo, void *ctx) {
+//     if (!chatInfo || !ctx) {
+//         return -1;  // Safety check: return error if pointers are invalid
+//     }
 
-    // int out_fd = *(int *)ctx;  // Extract the file descriptor from the context
+//     int out_fd = *(int *)ctx;  // Extract the file descriptor from the context
 
-    // Format the timestamp into ISO-8601 format
+//     // Format the timestamp into ISO-8601 format
+//     char timestamp[32];
+//     timestamp_to_iso8601(chatInfo->timestamp, sizeof(timestamp), timestamp);
+
+//     // Print chat message details to the client
+//     printf( 
+//         "User: %s\nRoom: %s\nMessage: %s\nTimestamp: %s\n", 
+//         chatInfo->user, chatInfo->room, chatInfo->message, timestamp);
+
+//     // Print topics if present
+//     if (chatInfo->nTopics > 0) {
+//         printf( "Topics:");
+//         for (size_t i = 0; i < chatInfo->nTopics; ++i) {
+//             printf( " %s", chatInfo->topics[i]);
+//         }
+//         printf( "\n");
+//     }
+//     printf( "-----\n");  // Separator between messages
+
+//     return 0;  // Continue iterating
+
+
+//     // if (!chatInfo) return -1;  // Safety check
+
+//     // char timestamp[32];
+//     // timestamp_to_iso8601(chatInfo->timestamp, sizeof(timestamp), timestamp);
+
+//     // // Print chat message details
+//     // // printf(
+//     // //     "Timesstamp: %s\nUser: %s\nRoom: %s\nMessage: %s\n",
+//     // //     timestamp, chatInfo->user, chatInfo->room, chatInfo->message
+//     // // );
+
+//     // // Print topics if any
+//     // if (chatInfo->nTopics > 0) {
+//     //     printf("Topics:");
+//     //     for (size_t i = 0; i < chatInfo->nTopics; ++i) {
+//     //         printf(" %s", chatInfo->topics[i]);
+//     //     }
+//     //     printf("\n");
+//     // }
+//     // printf("-----\n");
+
+//     // return 0;
+
+
+// }
+
+static int serialize_and_send_chat_info(const ChatInfo *chatInfo, void *ctx) {
+    StrSpace strSpace;
+    init_str_space(&strSpace);  // Initialize dynamic string space
+
+
     char timestamp[32];
-    timestamp_to_iso8601(chatInfo->timestamp, sizeof(timestamp), timestamp);
+    timestamp_to_iso8601(chatInfo->timestamp, sizeof(ISO_8601_FORMAT) + 1, timestamp);
 
-    // Print chat message details to the client
-    printf( 
-        "User: %s\nRoom: %s\nMessage: %s\nTimestamp: %s\n", 
-        chatInfo->user, chatInfo->room, chatInfo->message, timestamp);
+    // Serialize basic information of the chat
+    append_sprintf_str_space(&strSpace,
+        "user=%s;room=%s;message=%s;timestamp=%s;nTopics=%zu;",
+        chatInfo->user, chatInfo->room, chatInfo->message,
+        timestamp, chatInfo->nTopics);
 
-    // Print topics if present
-    if (chatInfo->nTopics > 0) {
-        printf( "Topics:");
-        for (size_t i = 0; i < chatInfo->nTopics; ++i) {
-            printf( " %s", chatInfo->topics[i]);
-        }
-        printf( "\n");
+    // Serialize the topics
+    for (size_t i = 0; i < chatInfo->nTopics; ++i) {
+        append_sprintf_str_space(&strSpace, "topic[%zu]=%s;", i, chatInfo->topics[i]);
     }
-    printf( "-----\n");  // Separator between messages
 
+    const char *serialized_data = iter_str_space(&strSpace, NULL);
+    int out_fd = *(int *)ctx;  // Extract the file descriptor
+
+    // Send the serialized data to the client
+    write(out_fd, serialized_data , strlen(serialized_data));
+    // fflush(0);
+    free_str_space(&strSpace);  // Clean up
     return 0;  // Continue iterating
 }
 
@@ -154,13 +209,17 @@ static int handle_query_cmd(Server *server, const QueryCmd *queryCmd) {
     const char **topics = queryCmd->topics;
     size_t maxCount = queryCmd->count;
 
-    printf("Executing QUERY_CMD: room=%s, nTopics=%zu, count=%zu\n", 
-           room, nTopics, maxCount);
+    // printf("Executing QUERY_CMD: room=%s, nTopics=%zu, count=%zu\n", 
+    //        room, nTopics, maxCount);
 
     // Perform the database query with the callback `print_chat_info'
-    int *ctx;
+    // Use StrSpace for error message handling
+    StrSpace response;
+    init_str_space(&response);
+
+    // int *ctx = server->out_fd;
     int queryResult = query_chat_db(
-        server->db, room, nTopics, topics, maxCount, print_chat_info, &ctx
+        server->db, room, nTopics, topics, maxCount, serialize_and_send_chat_info, &server->out_fd
     );
 
     // Handle the result of the query

@@ -1,5 +1,6 @@
 #include "common.h"
 #include <chat-cmd.h>
+#include <chat-db.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -127,6 +128,81 @@ int deserialize_query_cmd(const char *input, QueryCmd *queryCmd) {
 
     return 0;  // Success
 }
+
+int serialize_chat_info(const ChatInfo *chatInfo, StrSpace *strSpace) {
+    if (!chatInfo) return -1;  // Error check
+
+    init_str_space(strSpace);  // Initialize dynamic string space
+
+    char timestamp[32];
+    timestamp_to_iso8601(chatInfo->timestamp, sizeof(ISO_8601_FORMAT) + 1, timestamp);
+
+    printf("\ntime stamp : %s\n",timestamp);
+    // Serialize basic fields
+    if (append_sprintf_str_space(strSpace,
+        "user=%s;room=%s;message=%s;timestamp=%s;nTopics=%zu;",
+        chatInfo->user, chatInfo->room, chatInfo->message, 
+        timestamp, chatInfo->nTopics) != 0) {
+        return -1;  // Serialization error
+    }
+
+    // Serialize each topic
+    for (size_t i = 0; i < chatInfo->nTopics; ++i) {
+        if (append_sprintf_str_space(strSpace, "topic[%zu]=%s;", 
+            i, chatInfo->topics[i]) != 0) {
+            return -1;  // Serialization error
+        }
+    }
+
+    return 0;  // Success
+}
+
+
+int deserialize_chat_info(const char *input, ChatInfo *chatInfo) {
+    if (!input || !chatInfo) return -1;  // Error check
+
+    memset(chatInfo, 0, sizeof(ChatInfo));  // Initialize structure
+
+    char user[128], room[128], message[BUFSIZ], timestamp_str[32];
+    TimeMillis timestamp;
+    size_t nTopics;
+
+    // Parse basic fields from the input string
+    if (sscanf(input, "user=%127[^;];room=%127[^;];message=%255[^;];timestamp=%31[^;];nTopics=%zu;",
+               user, room, message, timestamp_str, &nTopics) != 5) {
+        return -1;  // Parsing error
+    }
+
+    
+
+    // Allocate memory for topics
+    const char **topics = malloc(nTopics * sizeof(char *));
+    if (!topics) return -1;  // Memory allocation error
+
+    // Parse each topic
+    const char *pos = strstr(input, "topic[0]=");  // Start of topics
+    for (size_t i = 0; i < nTopics && pos; ++i) {
+        char topic[128];
+        if (sscanf(pos, "topic[%zu]=%127[^;];", &i, topic) != 2) {
+            free(topics);  // Cleanup on failure
+            return -1;
+        }
+        topics[i] = strdup(topic);  // Store topic
+        pos = strstr(pos + 1, "topic[");  // Move to the next topic
+    }
+
+    // Populate ChatInfo structure
+    chatInfo->user = strdup(user);
+    chatInfo->room = strdup(room);
+    chatInfo->message = strdup(message);
+    chatInfo->timestamp = timestamp_str;
+    chatInfo->nTopics = nTopics;
+    chatInfo->topics = topics;
+
+    return 0;  // Success
+}
+
+
 
 
 void free_query_cmd(QueryCmd *cmd) {

@@ -3,7 +3,7 @@
 
 #include <chat-cmd.h>
 #include <str-space.h>
-
+#include <chat-db.h>
 #include <stdio.h>
 #include "stdbool.h"
 
@@ -17,5 +17,8 @@ int deserialize_query_cmd(const char *input, QueryCmd *queryCmd);
 
 int serialize_query_cmd(const QueryCmd *query, StrSpace *strSpace);
 
+int serialize_chat_info(const ChatInfo *chatInfo, StrSpace *strSpace);
+
+int deserialize_chat_info(const char *input, ChatInfo *chatInfo  );
 
 #endif //#ifndef COMMON_H_

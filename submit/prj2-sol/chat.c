@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+// #include <chat-base.h>
 
 #include <unistd.h>
 
@@ -128,6 +129,46 @@ free_chat(Chat *chat)
  *  If the command is an END_CMD command, then ensure that the server
  *  process is shut down cleanly.
  */
+
+void receive_and_print_chat_info(int server_fd,Chat *chat) {
+    char buffer[BUFSIZ];
+    ChatInfo chatInfo;
+    int res =100;
+    while (read(server_fd, buffer, sizeof(buffer) - 1) > 0) {
+        buffer[sizeof(buffer) - 1] = '\0';  // Ensure null termination
+        res = 0;
+        // fprintf(chat->out,buffer);
+        // Deserialize the chat info
+        if ( deserialize_chat_info(buffer, &chatInfo) != 0) {
+            fprintf(chat->err,"Error: Failed to deserialize chat info %d\n",res);
+            // continue;
+        }
+
+        // Print the deserialized chat info
+        fprintf( chat->out, "%s\n%s %s",chatInfo.timestamp, chatInfo.user, chatInfo.room  );
+
+        // Print topics if any
+        if (chatInfo.nTopics > 0) {
+            for (size_t i = 0; i < chatInfo.nTopics; ++i) {
+                fprintf(chat->out , " %s", chatInfo.topics[i]);
+            }
+            fprintf(chat->out,"\n");
+        }
+        fprintf(chat->out,"%s\n",chatInfo.message);
+
+        // Free allocated memory for topics
+        for (size_t i = 0; i < chatInfo.nTopics; ++i) {
+            free((char *)chatInfo.topics[i]);
+        }
+        free((char **)chatInfo.topics);
+        free((char *)chatInfo.user);
+        free((char *)chatInfo.room);
+        free((char *)chatInfo.message);
+    }
+}
+
+
+
 void
 do_chat_cmd(Chat *chat, const ChatCmd *cmd)
 {
@@ -171,7 +212,7 @@ do_chat_cmd(Chat *chat, const ChatCmd *cmd)
     case QUERY_CMD:
 
         if (serialize_query_cmd(&cmd->query, &strSpace) != 0) {
-            printf("Serialized QueryCmd: %s\n", strSpace.buf);
+            fprintf(chat->err,"Serialized QueryCmd: %s\n", strSpace.buf);
         }
 
         const char *serialized_querry = iter_str_space(&strSpace, NULL);
@@ -179,6 +220,8 @@ do_chat_cmd(Chat *chat, const ChatCmd *cmd)
             fprintf(chat->err, ERROR "SYS_ERR: Failed to send command to server : add_data\n");
             return;
         }
+        receive_and_print_chat_info(chat->server_to_client[0],chat);
+        // fprintf(chat->out, " testing\n");
 
 
       break;
@@ -208,6 +251,8 @@ do_chat_cmd(Chat *chat, const ChatCmd *cmd)
 
   //TODO
 }
+
+
 
 /** return server's PID */
 pid_t
