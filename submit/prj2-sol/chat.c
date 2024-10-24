@@ -97,7 +97,7 @@ make_chat(const char *dbPath, FILE *out, FILE *err)
         // do_server(chat->out, chat->server_to_client[1], dbPath);
         do_server(chat->client_to_server[0], chat->server_to_client[1], dbPath);
         // fprintf(err, "%sfork success2\n", ERROR);
-        // exit(0);
+        exit(0);
           // Server process should exit after handling
     }
 
@@ -106,7 +106,7 @@ make_chat(const char *dbPath, FILE *out, FILE *err)
     close(chat->server_to_client[1]);  // Close write end of server to client pipe in the client
     chat->out = out;
     chat->err = err;
-    fflush(out);
+    // fflush(out);
   return chat;  
 }
 
@@ -118,6 +118,7 @@ make_chat(const char *dbPath, FILE *out, FILE *err)
 void
 free_chat(Chat *chat)
 {
+  return;
   //TODO
 }
 
@@ -164,7 +165,7 @@ void receive_and_print_chat_info(int server_fd,Chat *chat) {
             }
             fprintf(chat->out,"\n");
         }
-        fprintf(chat->out,"%s\n",chatInfo.message);
+        fprintf(chat->out,"%s",chatInfo.message);
 
         // // Free allocated memory for topics
         // for (size_t i = 0; i < chatInfo.nTopics; ++i) {
