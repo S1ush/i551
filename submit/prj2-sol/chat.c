@@ -96,7 +96,7 @@ make_chat(const char *dbPath, FILE *out, FILE *err)
         // do_server();
         // do_server(chat->out, chat->server_to_client[1], dbPath);
         do_server(chat->client_to_server[0], chat->server_to_client[1], dbPath);
-        fprintf(err, "%sfork success2\n", ERROR);
+        // fprintf(err, "%sfork success2\n", ERROR);
         // exit(0);
           // Server process should exit after handling
     }
@@ -132,22 +132,32 @@ free_chat(Chat *chat)
 
 void receive_and_print_chat_info(int server_fd,Chat *chat) {
     char buffer[BUFSIZ];
-    ChatInfo chatInfo;
-    int res =100;
-    while (read(server_fd, buffer, sizeof(buffer) - 1) > 0) {
+    int res = 0;
+    int temp = 0;
+    while ((res = read(server_fd, buffer, sizeof(buffer) - 1)) > 0) {
+        ChatInfo chatInfo;
+        if(( strncmp(buffer, "end", 3)) == 0){
+          // fprintf(chat->out, "\n received ok\n");
+          break;
+        }
+      if(temp == 0){
+        fprintf(chat->out,"ok\n");
+        temp++;
+      }
         buffer[sizeof(buffer) - 1] = '\0';  // Ensure null termination
-        res = 0;
-        // fprintf(chat->out,buffer);
-        // Deserialize the chat info
+        // res = 0;
+        // fprintf(chat->out,"size: %d\n buf : %s\n",res,buffer);
+        // // Deserialize the chat info
         if ( deserialize_chat_info(buffer, &chatInfo) != 0) {
             fprintf(chat->err,"Error: Failed to deserialize chat info %d\n",res);
             // continue;
         }
+           memset(buffer, 0, sizeof (buffer));
 
-        // Print the deserialized chat info
+        // // Print the deserialized chat info
         fprintf( chat->out, "%s\n%s %s",chatInfo.timestamp, chatInfo.user, chatInfo.room  );
 
-        // Print topics if any
+        // // Print topics if any
         if (chatInfo.nTopics > 0) {
             for (size_t i = 0; i < chatInfo.nTopics; ++i) {
                 fprintf(chat->out , " %s", chatInfo.topics[i]);
@@ -156,15 +166,18 @@ void receive_and_print_chat_info(int server_fd,Chat *chat) {
         }
         fprintf(chat->out,"%s\n",chatInfo.message);
 
-        // Free allocated memory for topics
-        for (size_t i = 0; i < chatInfo.nTopics; ++i) {
-            free((char *)chatInfo.topics[i]);
-        }
-        free((char **)chatInfo.topics);
-        free((char *)chatInfo.user);
-        free((char *)chatInfo.room);
-        free((char *)chatInfo.message);
+        // // Free allocated memory for topics
+        // for (size_t i = 0; i < chatInfo.nTopics; ++i) {
+        //     free((char *)chatInfo.topics[i]);
+        // }
+        // free((char **)chatInfo.topics);
+        // free((char *)chatInfo.user);
+        // free((char *)chatInfo.room);
+        // free((char *)chatInfo.message);
+        memset(buffer, 0, sizeof (buffer));
     }
+    
+        // fprintf(chat->out,"\n exited %d\n buf : %s\n", res, buffer);
 }
 
 
@@ -198,13 +211,27 @@ do_chat_cmd(Chat *chat, const ChatCmd *cmd)
         }
 
         
-    
-      
-        if (cmd->type == END_CMD) {
-            // Wait for server to exit
-            waitpid(chat->server_pid, NULL, 0);
+      char response[1024];
+        ssize_t n = read(chat->server_to_client[0], response, sizeof(response) - 1);
+        if (n < 0) {
+            fprintf(chat->err, ERROR "SYS_ERR: Failed to read server response\n");
+            return;
         }
 
+        response[n] = '\0';
+
+        if (strncmp(response, "ok", 2) == 0) {
+            fprintf(chat->out, "%s\n", response);
+        } else if (strncmp(response, "err", 3) == 0) {
+            fprintf(chat->err, "%s\n", response);
+        } else {
+            fprintf(chat->err, ERROR "SYS_ERR: Invalid server response, %s\n",response);
+        }
+
+        
+    
+      
+       
     }
       /* code */
       break;
@@ -229,27 +256,7 @@ do_chat_cmd(Chat *chat, const ChatCmd *cmd)
       break;
     }
 
-
-      char response[1024];
-        ssize_t n = read(chat->server_to_client[0], response, sizeof(response) - 1);
-        if (n < 0) {
-            fprintf(chat->err, ERROR "SYS_ERR: Failed to read server response\n");
-            return;
-        }
-
-        response[n] = '\0';
-
-        if (strncmp(response, "ok", 2) == 0) {
-            fprintf(chat->out, "%s\n", response);
-        } else if (strncmp(response, "err", 3) == 0) {
-            fprintf(chat->err, "%s\n", response);
-        } else {
-            fprintf(chat->err, ERROR "SYS_ERR: Invalid server response\n");
-        }
-
-     
-
-  //TODO
+  
 }
 
 

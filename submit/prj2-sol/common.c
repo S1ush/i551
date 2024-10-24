@@ -137,7 +137,6 @@ int serialize_chat_info(const ChatInfo *chatInfo, StrSpace *strSpace) {
     char timestamp[32];
     timestamp_to_iso8601(chatInfo->timestamp, sizeof(ISO_8601_FORMAT) + 1, timestamp);
 
-    printf("\ntime stamp : %s\n",timestamp);
     // Serialize basic fields
     if (append_sprintf_str_space(strSpace,
         "user=%s;room=%s;message=%s;timestamp=%s;nTopics=%zu;",
@@ -172,6 +171,8 @@ int deserialize_chat_info(const char *input, ChatInfo *chatInfo) {
                user, room, message, timestamp_str, &nTopics) != 5) {
         return -1;  // Parsing error
     }
+    // printf("\nmessage:");
+    // printf(message);
 
     
 
@@ -201,6 +202,7 @@ int deserialize_chat_info(const char *input, ChatInfo *chatInfo) {
 
     return 0;  // Success
 }
+
 
 
 

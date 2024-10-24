@@ -51,7 +51,7 @@ void do_server(int from_client_fd, int to_client_fd, const char *dbPath)
 
            ssize_t n = read(from_client_fd, buffer, sizeof(buffer) - 1);
                 if(n <= 0){
-                    printf("err reacving the data ");
+                    // printf("err reacving the data ");
                 }   
         switch (type) {
             case ADD_CMD:     {
@@ -63,6 +63,9 @@ void do_server(int from_client_fd, int to_client_fd, const char *dbPath)
                 // printf('sfuhdkjasn d');
                  res = handle_add_cmd(&server, &addCmd);
                 //  printf("response,%d", res);
+                //   printf("respons, %d",res);
+                    if(res == 0){
+                    write(to_client_fd, "ok", sizeof(char)*2);
                  }
                 break;
             case QUERY_CMD:
@@ -73,6 +76,7 @@ void do_server(int from_client_fd, int to_client_fd, const char *dbPath)
                         }
                   
                 res = handle_query_cmd(&server, &QueryCmd);
+                // printf("res,%d",res);
                 break;
             case END_CMD:
                 free_chat_db(server.db);
@@ -84,9 +88,7 @@ void do_server(int from_client_fd, int to_client_fd, const char *dbPath)
                 }
                 break;
         }
-        printf("respons, %d",res);
-        if(res == 0){
-        write(to_client_fd, "ok", sizeof(char)*2);
+      
         }
     }
 
@@ -101,7 +103,7 @@ static int handle_add_cmd(Server *server, const AddCmd *addCmd) {
                 addCmd->message);
 
     if(addSuccess != 0){
-       printf("err: %s", error_chat_db(server->db));
+    //    printf("err: %s", error_chat_db(server->db));
        return -1;
     }
     // printf("  User: %s\n", addCmd->user);
@@ -112,65 +114,68 @@ static int handle_add_cmd(Server *server, const AddCmd *addCmd) {
 
 // Helper function to print each chat result (IterFn)
 // Helper function to print each chat result (IterFn)
-// static int print_chat_info(const ChatInfo *chatInfo, void *ctx) {
-//     if (!chatInfo || !ctx) {
-//         return -1;  // Safety check: return error if pointers are invalid
-//     }
+static int print_chat_info(const ChatInfo *chatInfo, void *ctx) {
+    if (!chatInfo || !ctx) {
+        return -1;  // Safety check: return error if pointers are invalid
+    }
 
-//     int out_fd = *(int *)ctx;  // Extract the file descriptor from the context
+    int out_fd = *(int *)ctx;  // Extract the file descriptor from the context
 
-//     // Format the timestamp into ISO-8601 format
-//     char timestamp[32];
-//     timestamp_to_iso8601(chatInfo->timestamp, sizeof(timestamp), timestamp);
+    // Format the timestamp into ISO-8601 format
+    char timestamp[32];
+    timestamp_to_iso8601(chatInfo->timestamp, sizeof(timestamp), timestamp);
 
-//     // Print chat message details to the client
-//     printf( 
-//         "User: %s\nRoom: %s\nMessage: %s\nTimestamp: %s\n", 
-//         chatInfo->user, chatInfo->room, chatInfo->message, timestamp);
+    // Print chat message details to the client
+    printf( 
+        "User: %s\nRoom: %s\nMessage: %s\nTimestamp: %s\n", 
+        chatInfo->user, chatInfo->room, chatInfo->message, timestamp);
 
-//     // Print topics if present
-//     if (chatInfo->nTopics > 0) {
-//         printf( "Topics:");
-//         for (size_t i = 0; i < chatInfo->nTopics; ++i) {
-//             printf( " %s", chatInfo->topics[i]);
-//         }
-//         printf( "\n");
-//     }
-//     printf( "-----\n");  // Separator between messages
+    // Print topics if present
+    if (chatInfo->nTopics > 0) {
+        printf( "Topics:");
+        for (size_t i = 0; i < chatInfo->nTopics; ++i) {
+            printf( " %s", chatInfo->topics[i]);
+        }
+        printf( "\n");
+    }
+    printf( "-----\n");  // Separator between messages
 
-//     return 0;  // Continue iterating
-
-
-//     // if (!chatInfo) return -1;  // Safety check
-
-//     // char timestamp[32];
-//     // timestamp_to_iso8601(chatInfo->timestamp, sizeof(timestamp), timestamp);
-
-//     // // Print chat message details
-//     // // printf(
-//     // //     "Timesstamp: %s\nUser: %s\nRoom: %s\nMessage: %s\n",
-//     // //     timestamp, chatInfo->user, chatInfo->room, chatInfo->message
-//     // // );
-
-//     // // Print topics if any
-//     // if (chatInfo->nTopics > 0) {
-//     //     printf("Topics:");
-//     //     for (size_t i = 0; i < chatInfo->nTopics; ++i) {
-//     //         printf(" %s", chatInfo->topics[i]);
-//     //     }
-//     //     printf("\n");
-//     // }
-//     // printf("-----\n");
-
-//     // return 0;
+    return 0;  // Continue iterating
 
 
-// }
+    // if (!chatInfo) return -1;  // Safety check
 
-static int serialize_and_send_chat_info(const ChatInfo *chatInfo, void *ctx) {
+    // char timestamp[32];
+    // timestamp_to_iso8601(chatInfo->timestamp, sizeof(timestamp), timestamp);
+
+    // // Print chat message details
+    // // printf(
+    // //     "Timesstamp: %s\nUser: %s\nRoom: %s\nMessage: %s\n",
+    // //     timestamp, chatInfo->user, chatInfo->room, chatInfo->message
+    // // );
+
+    // // Print topics if any
+    // if (chatInfo->nTopics > 0) {
+    //     printf("Topics:");
+    //     for (size_t i = 0; i < chatInfo->nTopics; ++i) {
+    //         printf(" %s", chatInfo->topics[i]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("-----\n");
+
+    // return 0;
+
+
+}
+
+static void serialize_and_send_chat_info(const ChatInfo *chatInfo, void *ctx) {
+      if (!chatInfo || !ctx) {
+        return -1;  // Safety check: return error if pointers are invalid
+    }
     StrSpace strSpace;
     init_str_space(&strSpace);  // Initialize dynamic string space
-
+    // printf("1\n");
 
     char timestamp[32];
     timestamp_to_iso8601(chatInfo->timestamp, sizeof(ISO_8601_FORMAT) + 1, timestamp);
@@ -188,12 +193,13 @@ static int serialize_and_send_chat_info(const ChatInfo *chatInfo, void *ctx) {
 
     const char *serialized_data = iter_str_space(&strSpace, NULL);
     int out_fd = *(int *)ctx;  // Extract the file descriptor
-
+    // printf("\nserialised :%s",serialized_data);
+    // printf('\n');
     // Send the serialized data to the client
     write(out_fd, serialized_data , strlen(serialized_data));
-    // fflush(0);
     free_str_space(&strSpace);  // Clean up
-    return 0;  // Continue iterating
+    sleep(.5);
+    return;  // Continue iterating
 }
 
 
@@ -217,73 +223,15 @@ static int handle_query_cmd(Server *server, const QueryCmd *queryCmd) {
     StrSpace response;
     init_str_space(&response);
 
-    // int *ctx = server->out_fd;
+    int *ctx = server->out_fd;
     int queryResult = query_chat_db(
-        server->db, room, nTopics, topics, maxCount, serialize_and_send_chat_info, &server->out_fd
+        server->db, room, nTopics, topics, maxCount+1, serialize_and_send_chat_info, &server->out_fd
     );
-
-    // Handle the result of the query
-    if (queryResult != 0) {
-        const char *error = error_chat_db(server->db);
-        dprintf(server->out_fd, "err: %s\n", error);
-        return -1;
+    // // Handle the result of the query
+    while(queryResult == 0){
+            write(server->out_fd,"end", strlen("end")*sizeof(char));
+            break;      
     }
-
+// sleep(2);
     return 0;  // Success
 }
-
-// int filter()
-
-
-// static int handle_query_cmd(Server *server, const QueryCmd *querycmd) {
-//     // TODO: Implement query logic
-//     // For now, just send a placeholder response
-//     // write(server->out_fd, "ok\n", 3);
-
-
-//     if (!server || !querycmd || !server->db) {  // Safety checks
-//         dprintf(server->out_fd, "err: Invalid server state or query command\n");
-//         return -1;
-//     }
-
-//     // if (querycmd == NULL) {
-//     //     dprintf(server->out_fd, "err: Invalid query command\n");
-//     //     return -1;
-//     // }
-
-//     const char *room = querycmd->room;
-//     size_t nTopics = querycmd->nTopics;
-//     const char **topics = querycmd->topics;
-//     size_t maxCount = querycmd->count;
-
-//     // Use StrSpace for dynamic error message handling
-//     StrSpace response;
-//     init_str_space(&response);
-
-//     // Perform the database query
-//     int result = query_chat_db(
-//         server->db, room, nTopics, topics, maxCount, print_chat_info, &server->out_fd
-//     );
-
-//     // Handle success or error
-//     if (result != 0) {
-//         const char *error = error_chat_db(server->db);
-//         append_sprintf_str_space(&response, "err: %s\n", error);
-//         dprintf(server->out_fd, "%s", iter_str_space(&response, NULL));
-//         // free_str_space(&response);
-//         return -1;
-//     } else {
-//         append_str_space(&response, "ok: Query completed\n");
-//         dprintf(server->out_fd, "%s", iter_str_space(&response, NULL));
-//     }
-
-//     printf("Received QUERY_CMD: room=%s, nTopics=%zu, count=%zu\n", 
-//         querycmd->room, querycmd->nTopics, querycmd->count);
-
-//     // Clean up
-//     // free_str_space(&response);
-//     return 0;
-
-// }
-
-
