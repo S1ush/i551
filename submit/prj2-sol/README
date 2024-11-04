@@ -1,12 +1,16 @@
-Team Member 1 Name:	XXX
-Team Member 1 B-Number:	XXX
-Team Member 1 Email:	XXX
+Team Member 1 Name:	Yash Bhole
+Team Member 1 B-Number:	B01032961
+Team Member 1 Email:ybhole@binghamton.edu
 
-Team Member 2 Name:	XXX
-Team Member 2 B-Number:	XXX
-Team Member 2 Email:	XXX
+Team Member 2 Name:	Shuchi Kundaliya
+Team Member 2 B-Number:	B01037159
+Team Member 2 Email:	skundaliya@binghamton.edu
 
 *YOU MUST DOCUMENT YOUR IPC PROTOCOL HERE*.
 
+we have used anonymous pipes which are unidirectional we have 2 pipe one for sending one from server to client and other from client to server 
+
 Add any other text as needed to document the status of your project.
+
+dynamica allocation for sending the data from pipes are pending and valgrind for memory leak is have to be checked thats it 
 

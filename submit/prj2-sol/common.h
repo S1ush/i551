@@ -17,7 +17,6 @@ int deserialize_query_cmd(const char *input, QueryCmd *queryCmd);
 
 int serialize_query_cmd(const QueryCmd *query, StrSpace *strSpace);
 
-int serialize_chat_info(const ChatInfo *chatInfo, StrSpace *strSpace);
 
 int deserialize_chat_info(const char *input, ChatInfo *chatInfo  );
 
