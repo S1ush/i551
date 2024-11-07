@@ -17,12 +17,17 @@ CLIENT_OFILES = \
   chatc.o \
   chat.o \
   mock.o \
+  client.o \
+  common.o \
   utils.o
 
 # object files needed by server (must include mock.o needed for testing)
 SERVER_OFILES = \
   chatd.o \
   mock.o \
+  server.o \
+  server-loop.o \
+  common.o \
   utils.o 
 
 
@@ -49,8 +54,8 @@ clean:
 DEPEND:
 		gcc -MM  *.c
 
-chat.o: chat.c chat.h utils.h
+chat.o: chat.c chat.h utils.h client.c client.h common.h common.c 
 chatc.o: chatc.c chat.h
-chatd.o: chatd.c utils.h
+chatd.o: chatd.c utils.h server.c server.h server-loop.h server-loop.c
 mock.o: mock.c
 utils.o: utils.c utils.h

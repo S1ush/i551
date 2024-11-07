@@ -27,7 +27,6 @@ main(int argc, const char *argv[]) {
   ChatCmd cmd;
   Chat *chat = make_chat(argv[1], out, err);
   if (chat == NULL) fatalf(err, "unable to create Chat:");
-
   fprintf(out, "%s", prompt); fflush(out);
   while ((msgArgs = read_msg_args(in, msgArgs, &errNum)) != NULL) {
     if (errNum != NO_ERR) { fatal("%s", errnum_to_string(errNum)); }

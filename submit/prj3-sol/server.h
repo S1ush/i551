@@ -1,10 +1,10 @@
-#ifndef SERVER_LOOP_H_
-#define SERVER_LOOP_H_
-
-#include <chat-db.h>
+#ifndef SERVER_H_
+#define SERVER_H_
 
 #include <stdio.h>
 
-void server_loop(ChatDb *chatDb, FILE *in, FILE *out);
+//server specific declarations
 
-#endif //#ifndef SERVER_LOOP_H_
+void do_server(const char *dbPath, int inPipe[2], int outPipe[2]);
+
+#endif //#ifndef SERVER_H_

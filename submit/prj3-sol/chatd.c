@@ -1,185 +1,144 @@
-#include "utils.h"
-
-#include <chat-cmd.h>
-#include <chat-db.h>
-#include <errors.h>
-
-//uncomment next line to turn on tracing; use TRACE() with printf-style args
-//#define DO_TRACE
-#include <trace.h>
-
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
-#include <sys/file.h> 
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include "utils.h"
+#include "chat-db.h"
 
+// Make process a daemon
 
-
-
-// Creates the daemon process using double-fork technique
-static pid_t make_daemon(void) {
+static int make_daemon(void) {
     pid_t pid = fork();
-    if (pid < 0) fatal("first fork failed");
-    if (pid > 0) exit(0);  // parent exits
+    if (pid < 0) return -1;
+    if (pid > 0) exit(0);  // Parent exits
     
-    // First child continues
-    if (setsid() < 0) fatal("setsid failed");
+    // Create new session
+    if (setsid() < 0) return -1;
     
+    // Second fork to ensure we're not session leader
     pid = fork();
-    if (pid < 0) fatal("second fork failed");
-    if (pid > 0) {
-        // First child prints daemon PID and exits
-        printf("chatd PID: %d\n", pid);
-        exit(0);
-    }
+    if (pid < 0) return -1;
+    if (pid > 0) exit(0);
     
-    // Daemon process continues
-    // Close inherited file descriptors
-    for (int fd = 0; fd < sysconf(_SC_OPEN_MAX); fd++) {
-        if (fd != 2) close(fd);  // Keep stderr for logging
-    }
-    
-    umask(0);  // Reset file creation mask
-    return getpid();
+    return 0;
 }
 
-// Handles communication with a single client
-static void handle_client(const char* db_path, pid_t client_pid) {
-    // Open client-specific FIFOs based on client PID
-    char to_client[32], from_client[32];
-    snprintf(to_client, sizeof(to_client), "%d.0", client_pid);    // pid.0
-    snprintf(from_client, sizeof(from_client), "%d.1", client_pid); // pid.1
+static void handle_client(const char *db_path, pid_t client_pid) {
+    char read_fifo[MAX_FIFO_PATH_LEN], write_fifo[MAX_FIFO_PATH_LEN];
+    make_client_read_fifo_path(read_fifo, client_pid);
+    make_client_write_fifo_path(write_fifo, client_pid);
     
-    // Open FIFOs
-    int to_fd = open(to_client, O_WRONLY);
-    int from_fd = open(from_client, O_RDONLY);
-    if (to_fd < 0 || from_fd < 0) {
-        fprintf(stderr, "Failed to open client FIFOs\n");
+    // Server should open the client's write FIFO first for reading (this is the FIFO
+    // the client writes to, so server reads from it)
+    int client_to_server = open(read_fifo, O_RDONLY);
+    fprintf(stderr, "server: opened for reading from %s\n", read_fifo);
+    
+    if (client_to_server < 0) {
+        perror("server: cannot open read FIFO");
+        exit(1);
+    }
+
+    // Then open the client's read FIFO for writing (this is the FIFO the client
+    // reads from, so server writes to it)
+    int server_to_client = open(write_fifo, O_WRONLY);
+    fprintf(stderr, "server: opened for writing to %s\n", write_fifo);
+    
+    if (server_to_client < 0) {
+        close(client_to_server);
+        perror("server: cannot open write FIFO");
         exit(1);
     }
     
-    // Create streams
-    FILE* to_client_stream = fdopen(to_fd, "w");
-    FILE* from_client_stream = fdopen(from_fd, "r");
-    if (!to_client_stream || !from_client_stream) {
-        fprintf(stderr, "Failed to create client streams\n");
-        exit(1);
-    }
+    // Set up pipe arrays as expected by do_server
+    int inPipe[2] = { client_to_server, -1 };  // Read from client
+    int outPipe[2] = { -1, server_to_client }; // Write to client
     
-    // Open database
-    ChatDb* db = chat_db_new(db_path);
-    if (!db) {
-        fprintf(stderr, "Failed to open database\n");
-        exit(1);
-    }
-    
-    // Process client commands using provided server_loop
-    server_loop(db, from_client_stream, to_client_stream);
+    // Call do_server with the FIFOs arranged as pipes
+    int result = do_server(db_path, inPipe, outPipe);
     
     // Cleanup
-    chat_db_free(db);
-    fclose(to_client_stream);
-    fclose(from_client_stream);
-    exit(0);
-}
-
-// Creates a worker process using double-fork
-static void create_worker(const char* db_path, pid_t client_pid) {
-    pid_t pid = fork();
-    if (pid < 0) {
-        fprintf(stderr, "First fork failed for worker\n");
-        return;
-    }
-    
-    if (pid == 0) {  // First child
-        pid_t worker_pid = fork();
-        if (worker_pid < 0) exit(1);
-        
-        if (worker_pid == 0) {  // Worker (grandchild)
-            handle_client(db_path, client_pid);
-        }
-        exit(0);  // First child exits
-    }
-    
-    // Parent (daemon) continues
-    waitpid(pid, NULL, 0);  // Reap first child
-}
-
-// Main daemon loop
-static void daemon_loop(const char* db_path) {
-    // Create well-known FIFO
-    const char* wk_fifo = "chat_server.fifo";
-    mkfifo(wk_fifo, 0666);
-    
-    // Open well-known FIFO for reading and writing to avoid EOF
-    int wk_fd = open(wk_fifo, O_RDWR);
-    if (wk_fd < 0) {
-        fprintf(stderr, "Cannot open well-known FIFO\n");
-        exit(1);
-    }
-    
-    FILE* wk_stream = fdopen(wk_fd, "r");
-    if (!wk_stream) {
-        fprintf(stderr, "Cannot create well-known FIFO stream\n");
-        exit(1);
-    }
-    
-    // Read client PIDs from well-known FIFO
-    char buf[32];
-    while (fgets(buf, sizeof(buf), wk_stream)) {
-        pid_t client_pid = atoi(buf);
-        if (client_pid > 0) {
-            create_worker(db_path, client_pid);
-        }
-    }
-    
-    fclose(wk_stream);
+    close(client_to_server);
+    close(server_to_client);
+    exit(result);
 }
 
 
-/** Invoked with two arguments:
- *
- *    SERVER_DIR: the path to the directory in which the server should
- *    run and where all FIFOs will be created.
- *
- *    DBFILE_PATH: path to the sqlite file.  This must be relative to
- *    SERVER_DIR.
- *
- *  The server may use `stderr` for "logging", but all such logging
- *  *must* be turned off before submission.
- */
-int
-main(int argc, const char *argv[])
-{
 
-    if (argc != 3) {
+int main(int argc, char *argv[]) {
+   if (argc != 3) {
         fprintf(stderr, "usage: %s SERVER_DIR DBFILE_PATH\n", argv[0]);
         exit(1);
     }
     
     // Change to server directory
     if (chdir(argv[1]) < 0) {
-        fprintf(stderr, "Cannot change to directory %s\n", argv[1]);
+        perror("chdir failed");
         exit(1);
     }
     
-    // Test database connection
-    ChatDb* test_db = chat_db_new(argv[2]);
-    if (!test_db) {
-        fprintf(stderr, "Cannot open chat db %s\n", argv[2]);
+    // Verify database can be opened
+    MakeChatDbResult result;
+    if ((make_chat_db(argv[2], &result) != 0)) {
+        fprintf(stderr, "Cannot open database\n");
         exit(1);
     }
-    chat_db_free(test_db);
+    free_chat_db(result.chatDb);
     
-    // Create daemon and start server
-    make_daemon();
-    daemon_loop(argv[2]);
+    // Create and open well-known FIFO
+    if (create_fifo(WELL_KNOWN_FIFO) < 0) {
+        perror("Cannot create server FIFO");
+        exit(1);
+    }
+    
+    // Become a daemon
+    if (make_daemon() < 0) {
+        perror("Cannot create daemon");
+        exit(1);
+    }
+    
+    // Print daemon PID
+    printf("chatd PID: %d\n", getpid());
+    fflush(stdout);  // Ensure PID is printed before daemon detaches
+    
+    // Open well-known FIFO for reading. We use O_RDWR to prevent EOF when clients disconnect
+    int server_fifo = open(WELL_KNOWN_FIFO, O_RDWR);
+    if (server_fifo < 0) {
+        perror("Cannot open server FIFO");
+        exit(1);
+    }
+    
+    // Main server loop
+    while (1) {
+        pid_t client_pid;
+        ssize_t n = read(server_fifo, &client_pid, sizeof(client_pid));
+        
+        if (n != sizeof(client_pid)) {
+            if (n < 0) perror("read from well-known FIFO failed");
+            continue;
+        }
+        
+        fprintf(stderr, "server: received connection request from client PID %d\n", client_pid);
+        
+        // Double fork to create worker
+        pid_t pid = fork();
+        if (pid == 0) {
+            pid = fork();
+            if (pid == 0) {
+                // Grandchild (worker)
+                close(server_fifo);
+                handle_client(argv[2], client_pid);
+            }
+            exit(0);  // Child exits
+        }
+        
+        // Parent continues serving
+        if (pid > 0) {
+            waitpid(pid, NULL, 0);  // Reap child
+        }
+    }
     
     return 0;
-  
 }
