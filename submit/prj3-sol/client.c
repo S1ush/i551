@@ -33,14 +33,15 @@ send_add_req(Client *client, const AddCmd *cmd)
     .nBytes = nBytes,
   };
   FILE *out = client->serverOut;
+  // fprintf(stderr,"sent header ");
   write_header(&hdr, out);
-  fprintf(stderr,"sending this %s %s %s",cmd->user,cmd->room,cmd->message);
   fwrite(cmd->user, 1, strlen(cmd->user)+1, out);
   fwrite(cmd->room, 1, strlen(cmd->room)+1, out);
   fwrite(cmd->message, 1, strlen(cmd->message)+1, out);
   for (int i = 0; i < cmd->nTopics; i++) {
     fwrite(cmd->topics[i], 1, strlen(cmd->topics[i])+1, out);
   }
+  // fprintf(stderr,"sending this %s %s %s",cmd->user,cmd->room,cmd->message);
   // size_t buffer_size = ftell(out);
   // rewind(out);
   // char *buffer = (char*)malloc(buffer_size + 1);
@@ -50,7 +51,7 @@ send_add_req(Client *client, const AddCmd *cmd)
   // free(buffer);
   // rewind(out);
   fflush(out);
-  fprintf(client->out,"command types : %s", cmd->message);
+  // fprintf(client->out,"command types : %s", cmd->message);
   // return NULL;
 }
 
@@ -95,6 +96,7 @@ receive_res(Client *client)
   do { //loop until we get a error response or an empty ok response
     Hdr hdr = { .hdrType = SERVER_HDR };
     read_header(&hdr, in);
+    // fprintf(stderr,"received this");
     size_t nBytes = hdr.nBytes;
     TRACE("read hdr status = %d, nBytes = %zu", hdr.status, nBytes);
     if (hdr.status != 0) { //error response
@@ -131,23 +133,24 @@ do_client_cmd(Client *client, const ChatCmd *cmd)
   switch (cmd->type) {
   case ADD_CMD:
     send_add_req(client, &cmd->add);
-    fprintf(client->out,"commad add : %d", cmd->type);
+    // fprintf(stderr,"commad add : %d", cmd->type);
     // return NULL;
+    //  fprintf(stderr,"receiving this");
     receive_res(client);
     break;
   case QUERY_CMD:
-   fprintf(client->out,"commad query : %d", cmd->type);
+  //  fprintf(client->out,"commad query : %d", cmd->type);
     send_query_req(client, &cmd->query);
     receive_res(client);
     break;
   case END_CMD: {
-     fprintf(client->out,"commad end : %d", cmd->type);
+    //  fprintf(client->out,"commad end : %d", cmd->type);
     Hdr hdr = { .hdrType = CLIENT_HDR, .cmdType = END_CMD };
     write_header(&hdr, client->serverOut);
     break;
   }
   default:
-    fprintf(client->out,"commad default : %d", cmd->type);
+    // fprintf(client->out,"commad default : %d", cmd->type);
     assert(0);
   }
 }

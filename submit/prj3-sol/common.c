@@ -17,8 +17,8 @@ read_header(Hdr *hdr, FILE *in)
 {
   char buf[MAX_HDR_LEN];
   fgets(buf, MAX_HDR_LEN, in);
-  fprintf(stderr,"buffer here : %s\n ", buf);
-  fprintf(stderr,"%s\n",buf);
+  // fprintf(stderr,"buffer here : %s\n ", buf);
+  // fprintf(stderr,"%s\n",buf);
   TRACE("pid = %ld, buf = %s", (long)getpid(), buf);
   assert(buf[strlen(buf)] == '\0');
   if (hdr->hdrType == CLIENT_HDR) {
@@ -26,13 +26,13 @@ read_header(Hdr *hdr, FILE *in)
     sscanf(buf, "%d %d %zu %zu", &cmdType, &hdr->count, &hdr->nTopics,
            &hdr->nBytes);
     hdr->cmdType = cmdType;
-    fprintf(stderr,"sccanf %d %d %zu %zu\n", &cmdType, &hdr->count, &hdr->nTopics,
-           &hdr->nBytes);
+    // fprintf(stderr,"sccanf %d %d %zu %zu\n", &cmdType, &hdr->count, &hdr->nTopics,
+          //  &hdr->nBytes);
   }
   else {
     int serverStatus;
-    fprintf(stderr,"buffer here ");
-    fprintf(stderr,"%s\n",buf);
+    // fprintf(stderr,"buffer here ");
+    // fprintf(stderr,"%s\n",buf);
     sscanf(buf, "%d %zu", &serverStatus, &hdr->nBytes);
     hdr->status = serverStatus;
   }
@@ -51,5 +51,7 @@ write_header(const Hdr *hdr, FILE *out)
   assert(nBytes < MAX_HDR_LEN);
   TRACE("pid = %ld, nBytes = %d, buf = %s", (long)getpid(), nBytes, buf);
   fwrite(buf, 1, nBytes, out);
+  // fprintf(stderr, "pid = %ld, nBytes = %d, buf = %s", (long)getpid(), nBytes, buf);
   fflush(out);
+  // fprintf(stderr,"flusshed ");
 }

@@ -162,9 +162,12 @@ server_loop(ChatDb *chatDb, FILE *out, FILE *in)
 {
   const Server server = { .chatDb = chatDb, .in = in, .out = out };
   bool isDone = false;
+  // fprintf(stderr,"starting the server loop");
   while (!isDone) {
     Hdr hdr = { .hdrType = CLIENT_HDR };
+    // fprintf(stderr,"checking header");
     read_header(&hdr, in);
+    // fprintf(stderr, "done header ");
     switch (hdr.cmdType) {
     case ADD_CMD:
       do_add_cmd(&server, &hdr);
@@ -177,8 +180,9 @@ server_loop(ChatDb *chatDb, FILE *out, FILE *in)
       isDone = true;
       break;
     default:
-      // fprintf(stderr, "serve(): impossible cmdType = %d\n", hdr.cmdType);
-      // assert(false);
+      fprintf(stderr, "serve(): impossible cmdType = %d\n", hdr.cmdType);
+      // sleep(1);
+      assert(false);
     }
   };
 }

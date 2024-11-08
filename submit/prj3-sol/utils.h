@@ -6,8 +6,8 @@
 
 #include <unistd.h>
 
-#define WELL_KNOWN_FIFO "/tmp/chat_server_fifo"
-#define CLIENT_FIFO_PREFIX "/tmp/chat_client_"
+#define WELL_KNOWN_FIFO "./chat_server_fifo"
+#define CLIENT_FIFO_PREFIX "./chat_client_"
 #define MAX_FIFO_PATH_LEN 100
 
 // Create path string for client's read FIFO

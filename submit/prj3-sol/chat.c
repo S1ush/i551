@@ -106,6 +106,139 @@ CLEANUP:
  *
  *  If errors are encountered, then this function should return NULL.
  */
+// Chat *make_chat(const char *serverDir, FILE *out, FILE *err)
+// {
+//     if (chdir(serverDir) < 0) {
+//         errorf(err, "err SYS_ERR: cannot change to directory %s: %s", 
+//                serverDir, strerror(errno));
+//         return NULL;
+//     }
+//     pid_t clientPid = getpid();
+    
+//     // Create private FIFOs for this client
+//     char read_fifo[MAX_FIFO_PATH_LEN], write_fifo[MAX_FIFO_PATH_LEN];
+//     make_client_read_fifo_path(write_fifo, clientPid);
+//     make_client_write_fifo_path(read_fifo, clientPid);
+    
+//     if (create_fifo(read_fifo) < 0 || create_fifo(write_fifo) < 0) {
+//         errorf(err, "err SYS_ERR: cannot create client FIFOs: %s", 
+//                strerror(errno));
+//         cleanup_client_fifos(clientPid);
+//         return NULL;
+//     }
+
+//     // Open well-known FIFO with O_RDWR
+//     int server_fifo = open_fifo(WELL_KNOWN_FIFO, O_RDWR);
+//     if (server_fifo < 0) {
+//         errorf(err, "err SYS_ERR: cannot connect to server: %s", 
+//                strerror(errno));
+//         cleanup_client_fifos(clientPid);
+//         return NULL;
+//     }
+
+//     // Send our PID to server
+//     fprintf(out,"clientpid = %d",clientPid);
+//     if (write(server_fifo, &clientPid, sizeof(clientPid)) != sizeof(clientPid)) {
+//         errorf(err, "err SYS_ERR: cannot send request to server: %s", 
+//                strerror(errno));
+//         close(server_fifo);
+//         cleanup_client_fifos(clientPid);
+//         return NULL;
+//     }
+//     close(server_fifo);
+
+//     // Set up pipe arrays as expected by do_client
+//     int inPipe[2] = { -1, -1 };
+//     int outPipe[2] = { -1, -1 };
+
+
+
+//     int write_fd = open(write_fifo, O_WRONLY);
+//     fprintf(stderr,"client : write %s\n", write_fifo);
+//     if (write_fd < 0) {
+//         errorf(err, "err SYS_ERR: cannot open write FIFO: %s\n", strerror(errno));
+//         cleanup_client_fifos(clientPid);
+//         return NULL;
+//     }
+
+//     // Then open read FIFO (server will open for writing)
+//     int read_fd = open(read_fifo, O_RDONLY);
+//     fprintf(stderr,"client : read %s\n", read_fifo);
+//     if (read_fd < 0) {
+//         close(write_fd);
+//         errorf(err, "err SYS_ERR: cannot open read FIFO: %s", strerror(errno));
+//         cleanup_client_fifos(clientPid);
+//         return NULL;
+//     }
+
+
+//     // Open both FIFOs with O_RDWR to prevent EOF conditions
+//     // int read_fd = open_fifo(read_fifo, O_RDWR);
+//     //   fprintf(stderr,"\nreading to = %s",read_fifo);
+//     // int write_fd = open_fifo(write_fifo, O_RDWR);
+//     //   fprintf(stderr,"\nwriting to = %s",write_fifo);
+
+//     // if (read_fd < 0 || write_fd < 0) {
+//     //     if (read_fd >= 0) close(read_fd);
+//     //     if (write_fd >= 0) close(write_fd);
+//     //     errorf(err, "err SYS_ERR: cannot open FIFOs: %s", strerror(errno));
+//     //     cleanup_client_fifos(clientPid);
+//     //     return NULL;
+//     // }
+
+//     // Set up the pipe arrays with the FIFOs
+//     // Close the ends we don't need after setting up both FIFOs
+//     // inPipe[0] = read_fd;   // Keep read end for reading from server
+//     inPipe[1] = dup(read_fd);  // Will be closed by do_client
+//     outPipe[0] = dup(write_fd);  // Will be closed by do_client
+//     // outPipe[1] = write_fd;  // Keep write end for writing to server
+//     inPipe[0] = read_fd;   // Read end for reading from server
+//     // inPipe[1] = -1;        // Write end not needed
+//     // outPipe[0] = -1;       // Read end not needed
+//     outPipe[1] = write_fd; // Write end for writing to server
+//     Chat *chat = NULL;
+//     FILE *serverIn = NULL;
+//     FILE *serverOut = NULL;
+//     const char *errMsg;
+//        serverIn = fdopen(read_fd, "r");
+//     if (!serverIn) {
+//         errMsg = "client cannot fdopen(inPipe[0])";
+   
+//     }
+
+//     serverOut = fdopen(write_fd, "w");
+//     if (!serverOut) {
+//         errMsg = "client cannot fdopen(outPipe[1])";
+      
+//     }
+
+//      chat = malloc(sizeof(Chat));
+//     if (!chat) {
+//         fprintf(stderr,"chat error" );
+//     }
+
+//          *chat = (Chat) {
+//         .client = (Client) {
+//             .out = out,
+//             .err = err,
+//             .serverIn = serverIn,
+//             .serverOut = serverOut,
+//         },
+//         .clientPid = clientPid,
+//     };
+
+//     // Call do_client with our clientPid for proper cleanup
+//     // Chat *chat = do_client(clientPid, out, err, inPipe, outPipe);
+//     // if (chat == NULL) {
+//     //     // do_client will close inPipe[0] and outPipe[1] if it fails
+//     //     cleanup_client_fifos(clientPid);
+//     //     return NULL;
+//     // }
+//     fprintf(out, "checking where is breaking \n");
+
+//     return chat;
+// }
+
 Chat *make_chat(const char *serverDir, FILE *out, FILE *err)
 {
     if (chdir(serverDir) < 0) {
@@ -117,8 +250,12 @@ Chat *make_chat(const char *serverDir, FILE *out, FILE *err)
     
     // Create private FIFOs for this client
     char read_fifo[MAX_FIFO_PATH_LEN], write_fifo[MAX_FIFO_PATH_LEN];
-    make_client_read_fifo_path(write_fifo, clientPid);
-    make_client_write_fifo_path(read_fifo, clientPid);
+    // Fixed: These were swapped - now corrected
+    make_client_read_fifo_path(read_fifo, clientPid);
+    //    fprintf(stderr, "client: opened for read_fifo to %s\n", read_fifo);
+    make_client_write_fifo_path(write_fifo, clientPid);
+    //    fprintf(stderr, "client: opened for write_fifo to %s\n", write_fifo);
+    
     
     if (create_fifo(read_fifo) < 0 || create_fifo(write_fifo) < 0) {
         errorf(err, "err SYS_ERR: cannot create client FIFOs: %s", 
@@ -127,8 +264,8 @@ Chat *make_chat(const char *serverDir, FILE *out, FILE *err)
         return NULL;
     }
 
-    // Open well-known FIFO with O_RDWR
-    int server_fifo = open_fifo(WELL_KNOWN_FIFO, O_RDWR);
+    // Open well-known FIFO - only need WRONLY for client
+    int server_fifo = open(WELL_KNOWN_FIFO, O_WRONLY);
     if (server_fifo < 0) {
         errorf(err, "err SYS_ERR: cannot connect to server: %s", 
                strerror(errno));
@@ -137,7 +274,6 @@ Chat *make_chat(const char *serverDir, FILE *out, FILE *err)
     }
 
     // Send our PID to server
-    fprintf(out,"clientpid = %d",clientPid);
     if (write(server_fifo, &clientPid, sizeof(clientPid)) != sizeof(clientPid)) {
         errorf(err, "err SYS_ERR: cannot send request to server: %s", 
                strerror(errno));
@@ -147,21 +283,18 @@ Chat *make_chat(const char *serverDir, FILE *out, FILE *err)
     }
     close(server_fifo);
 
-    // Set up pipe arrays as expected by do_client
-    int inPipe[2] = { -1, -1 };
-    int outPipe[2] = { -1, -1 };
-
-
-
-    int write_fd = open(write_fifo, O_WRONLY);
+    // First open write FIFO
+    int write_fd = open(write_fifo, O_RDWR);
+    // fprintf(stderr, "client: opened for writing to %s\n", write_fifo);
     if (write_fd < 0) {
         errorf(err, "err SYS_ERR: cannot open write FIFO: %s", strerror(errno));
         cleanup_client_fifos(clientPid);
         return NULL;
     }
 
-    // Then open read FIFO (server will open for writing)
-    int read_fd = open(read_fifo, O_RDONLY);
+    // Then open read FIFO
+    int read_fd = open(read_fifo, O_RDWR);
+    // fprintf(stderr, "client: opened for reading from %s\n", read_fifo);
     if (read_fd < 0) {
         close(write_fd);
         errorf(err, "err SYS_ERR: cannot open read FIFO: %s", strerror(errno));
@@ -169,40 +302,44 @@ Chat *make_chat(const char *serverDir, FILE *out, FILE *err)
         return NULL;
     }
 
-
-    // Open both FIFOs with O_RDWR to prevent EOF conditions
-    // int read_fd = open_fifo(read_fifo, O_RDWR);
-    //   fprintf(stderr,"\nreading to = %s",read_fifo);
-    // int write_fd = open_fifo(write_fifo, O_RDWR);
-    //   fprintf(stderr,"\nwriting to = %s",write_fifo);
-
-    // if (read_fd < 0 || write_fd < 0) {
-    //     if (read_fd >= 0) close(read_fd);
-    //     if (write_fd >= 0) close(write_fd);
-    //     errorf(err, "err SYS_ERR: cannot open FIFOs: %s", strerror(errno));
-    //     cleanup_client_fifos(clientPid);
-    //     return NULL;
-    // }
-
-    // Set up the pipe arrays with the FIFOs
-    // Close the ends we don't need after setting up both FIFOs
-    // inPipe[0] = read_fd;   // Keep read end for reading from server
-    inPipe[1] = dup(read_fd);  // Will be closed by do_client
-    outPipe[0] = dup(write_fd);  // Will be closed by do_client
-    // outPipe[1] = write_fd;  // Keep write end for writing to server
-    inPipe[0] = read_fd;   // Read end for reading from server
-    // inPipe[1] = -1;        // Write end not needed
-    // outPipe[0] = -1;       // Read end not needed
-    outPipe[1] = write_fd; // Write end for writing to server
-
-    // Call do_client with our clientPid for proper cleanup
-    Chat *chat = do_client(clientPid, out, err, inPipe, outPipe);
-    if (chat == NULL) {
-        // do_client will close inPipe[0] and outPipe[1] if it fails
+    // Create FILE* streams from the file descriptors
+    FILE *serverIn = fdopen(read_fd, "r");
+    if (!serverIn) {
+        close(read_fd);
+        close(write_fd);
+        errorf(err, "err SYS_ERR: cannot fdopen read FIFO");
         cleanup_client_fifos(clientPid);
         return NULL;
     }
-    fprintf(out, "checking where is breaking \n");
+
+    FILE *serverOut = fdopen(write_fd, "w");
+    if (!serverOut) {
+        fclose(serverIn);  // This also closes read_fd
+        close(write_fd);
+        errorf(err, "err SYS_ERR: cannot fdopen write FIFO");
+        cleanup_client_fifos(clientPid);
+        return NULL;
+    }
+
+    // Create and initialize chat structure
+    Chat *chat = malloc(sizeof(Chat));
+    if (!chat) {
+        fclose(serverIn);   // These fclose calls will close
+        fclose(serverOut);  // the underlying file descriptors too
+        errorf(err, "err SYS_ERR: cannot allocate Chat");
+        cleanup_client_fifos(clientPid);
+        return NULL;
+    }
+
+    *chat = (Chat) {
+        .client = (Client) {
+            .out = out,
+            .err = err,
+            .serverIn = serverIn,
+            .serverOut = serverOut,
+        },
+        .clientPid = clientPid,
+    };
 
     return chat;
 }
