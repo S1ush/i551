@@ -45,25 +45,18 @@ static void handle_client(const char *db_path, pid_t client_pid) {
     // Then open the client's read FIFO for writing (this is the FIFO the client
     // reads from, so server writes to it)
     int server_to_client = open(write_fifo, O_WRONLY);
-    // fprintf(stderr, "server: opened for writing to %s\n", write_fifo);
-    
-    if (server_to_client < 0) {
+        if (server_to_client < 0) {
         close(client_to_server);
         perror("server: cannot open write FIFO");
         exit(1);
     }
     
     // Set up pipe arrays as expected by do_server
-    int inPipe[2] = { client_to_server, -1 };  // Read from client
-    int outPipe[2] = { -1, server_to_client }; // Write to client
 
     FILE *serverIn = fdopen(client_to_server, "r");
     if (!serverIn) {
           fprintf(stderr, "fdopen: opened for reading to %s\n", write_fifo);
-        // close(read_fd);
-        // close(write_fd);
-        // errorf(err, "err SYS_ERR: cannot fdopen read FIFO");
-        // return NULL;
+       
     }
 
     FILE *serverOut = fdopen(server_to_client, "w");
@@ -83,6 +76,7 @@ static void handle_client(const char *db_path, pid_t client_pid) {
      const char *errMsg = NULL;
         if (make_chat_db(db_path, &result) != 0) {
             errMsg = result.err;
+            fprintf(stderr,"handle_client : %s\n", errMsg);
         }
     chatDb = result.chatDb;
     server_loop(chatDb, serverOut, serverIn);
