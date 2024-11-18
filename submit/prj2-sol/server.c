@@ -112,6 +112,12 @@ static void serialize_and_send_chat_info(const ChatInfo *chatInfo, void *ctx) {
     init_str_space(&strSpace);
     int out_fd = *(int *)ctx;
 
+    if(search == 0) {
+        write(out_fd, "searched", strlen("searched")*sizeof(char));
+        search++;
+        sleep(0.5);
+    }
+
     char timestamp[32];
     timestamp_to_iso8601(chatInfo->timestamp, sizeof(ISO_8601_FORMAT) + 1, timestamp);
 
@@ -125,16 +131,10 @@ static void serialize_and_send_chat_info(const ChatInfo *chatInfo, void *ctx) {
     }
 
     const char *serialized_data = iter_str_space(&strSpace, NULL);
-    uint32_t data_len = htonl(strlen(serialized_data));
-
-    // Send data length as a 4-byte integer
-    write(out_fd, &data_len, sizeof(data_len));
-    
-    // Send the actual serialized data
     write(out_fd, serialized_data, strlen(serialized_data));
     free_str_space(&strSpace);
+    sleep(.5);
 }
-
 
 static int handle_query_cmd(Server *server, const QueryCmd *queryCmd) {
     if (!server || !queryCmd || !server->db) {

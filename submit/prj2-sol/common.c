@@ -191,31 +191,30 @@ int deserialize_query_cmd(const char *input, QueryCmd *queryCmd) {
 
 
 int deserialize_chat_info(const char *input, ChatInfo *chatInfo) {
-     int in_fd = *(int *)input;
-    uint32_t data_len;
-
-    // Read the data length first
-    if (read(in_fd, &data_len, sizeof(data_len)) != sizeof(data_len)) {
-        perror("Failed to read data length");
-        return -1;
-    }
-    data_len = ntohl(data_len);
-
-    // Allocate buffer based on data_len
-    char *buffer = (char *)malloc(data_len + 1);
-    if (!buffer) {
-        perror("Failed to allocate buffer");
-        return -1;
-    }
-
-    // Read the actual serialized data
-    ssize_t bytes_read = read(in_fd, buffer, data_len);
-    if (bytes_read != data_len) {
-        perror("Failed to read full data");
-        free(buffer);
-        return -1;
-    }
-    buffer[data_len] = '\0';
+    if (!input || !chatInfo) return -1;  // Error check
+    memset(chatInfo, 0, sizeof(ChatInfo));  // Initialize structure
+    
+    char user[128], room[128], timestamp_str[32];
+    TimeMillis timestamp;
+    size_t nTopics;
+    
+    // First, find the message boundaries
+    const char *msg_start = strstr(input, "message=");
+    if (!msg_start) return -1;
+    msg_start += 8;  // Length of "message="
+    
+    const char *msg_end = strstr(msg_start, ";timestamp=");
+    if (!msg_end) return -1;
+    
+    // Calculate message length and allocate buffer
+    size_t msg_len = msg_end - msg_start;
+    char *message = malloc(msg_len + 1);  // +1 for null terminator
+    if (!message) return -1;
+    
+    // Extract message
+    strncpy(message, msg_start, msg_len);
+    message[msg_len] = '\0';
+    
     // Parse other fields using the message end as a reference point
     char format[256];
     snprintf(format, sizeof(format), 

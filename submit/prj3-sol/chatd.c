@@ -54,8 +54,8 @@ static void handle_client(const char *db_path, pid_t client_pid) {
     }
     
     // Set up pipe arrays as expected by do_server
-    int inPipe[2] = { client_to_server, -1 };  // Read from client
-    int outPipe[2] = { -1, server_to_client }; // Write to client
+    // int inPipe[2] = { client_to_server, -1 };  // Read from client
+    // int outPipe[2] = { -1, server_to_client }; // Write to client
 
     FILE *serverIn = fdopen(client_to_server, "r");
     if (!serverIn) {
@@ -83,6 +83,7 @@ static void handle_client(const char *db_path, pid_t client_pid) {
      const char *errMsg = NULL;
         if (make_chat_db(db_path, &result) != 0) {
             errMsg = result.err;
+            fprintf(stderr, "Error creating chat database: %s\n", errMsg);
         }
     chatDb = result.chatDb;
     server_loop(chatDb, serverOut, serverIn);

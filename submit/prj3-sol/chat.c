@@ -29,8 +29,7 @@ struct _Chat {
 
 /**************************** Private Routines *************************/
 
-static Chat *
-do_client(pid_t clientPid, FILE *out, FILE *err, int inPipe[2], int outPipe[2])
+static Chat *do_client(pid_t clientPid, FILE *out, FILE *err, int inPipe[2], int outPipe[2])
 {
     FILE *serverIn = NULL;
     FILE *serverOut = NULL;
