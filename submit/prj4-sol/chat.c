@@ -52,16 +52,16 @@ struct _Chat {
 
 
 /** Helper function to set up shared memory and semaphores */
-static Shm *init_shared_memory(size_t shmSize) {
-    Shm *shm = mmap(NULL, shmSize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-    if (shm == MAP_FAILED) return NULL;
+// static Shm *init_shared_memory(size_t shmSize) {
+//     Shm *shm = mmap(NULL, shmSize, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+//     if (shm == MAP_FAILED) return NULL;
 
-    // Initialize semaphores in shared memory
-    sem_init(&shm->sems[CLIENT_WRITE_SEM], 1, 1);  // Client can write initially
-    sem_init(&shm->sems[SERVER_READ_SEM], 1, 0);   // Server waits initially
-    shm->shmSize = shmSize;
-    return shm;
-}
+//     // Initialize semaphores in shared memory
+//     sem_init(&shm->sems[CLIENT_WRITE_SEM], 1, 1);  // Client can write initially
+//     sem_init(&shm->sems[SERVER_READ_SEM], 1, 0);   // Server waits initially
+//     shm->shmSize = shmSize;
+//     return shm;
+// }
 
 // Shm *init_shared_memory(size_t shmSize) {
 //     size_t totalSize = sizeof(Shm) + shmSize;

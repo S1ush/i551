@@ -20,6 +20,8 @@
 #define CLIENT_WRITE_SEM 0
 #define SERVER_READ_SEM  1
 
+#define SHM_NAME "/chat_shm"
+
 enum { MIN_SHM_SIZE = 1024 };
 
 // Define shared memory structure

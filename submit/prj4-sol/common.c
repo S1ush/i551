@@ -21,6 +21,7 @@
 #include <fcntl.h>
 
 
+
 Shm *init_shared_memory(size_t shmSize) {
     int shm_fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
     if (shm_fd == -1) {

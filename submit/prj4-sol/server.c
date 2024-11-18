@@ -272,20 +272,20 @@ do_server(const char *dbPath, Shm *shm)
     // exit(0);
 
 
-    printf("Server: Starting main loop...\n");
-
     ChatDb *db = NULL;
     MakeChatDbResult result;
+
     if (make_chat_db(dbPath, &result) != 0) {
-        fprintf(stderr, "Server: Failed to initialize database: %s\n", result.err);
+        fprintf(stderr, "do_server: Failed to initialize database: %s\n", result.err);
         return;
     }
     db = result.chatDb;
 
+    printf("Server: Starting main loop...\n");
     while (1) {
         printf("Server: Waiting for client semaphore...\n");
         if (sem_wait(&shm->sems[0]) != 0) {
-            perror("do_server: Failed to wait on client semaphore");
+            perror("do_server: Failed to wait for client semaphore");
             break;
         }
 
@@ -297,6 +297,11 @@ do_server(const char *dbPath, Shm *shm)
 
         printf("Server: Deserializing command...\n");
         ChatCmd *cmd = deserialize_chat_cmd(shm->buf, shm->bufSize);
+        if (!cmd) {
+            fprintf(stderr, "do_server: Failed to deserialize command\n");
+            sem_post(&shm->sems[2]);
+            continue;
+        }
 
         if (cmd->type == END_CMD) {
             printf("Server: Received END_CMD. Exiting.\n");
@@ -308,10 +313,7 @@ do_server(const char *dbPath, Shm *shm)
         process_command(shm, cmd, db);
 
         printf("Server: Signaling client semaphore...\n");
-        if (sem_post(&shm->sems[1]) != 0) {
-            perror("do_server: Failed to signal client semaphore");
-        }
-
+        sem_post(&shm->sems[1]);  // Notify client
         sem_post(&shm->sems[2]);  // Release mutex
     }
 
@@ -333,35 +335,29 @@ void process_command(Shm *shm, const ChatCmd *cmd, ChatDb *db) {
 
     switch (cmd->type) {
         case ADD_CMD: {
-            printf("Server: Handling ADD_CMD...\n");
             const AddCmd *add = &cmd->add;
-            int result = add_chat_db(db,
-                                     add->user,
-                                     add->room,
-                                     add->nTopics,
-                                     add->topics,
-                                     add->message);
-            if (result == 0) {
+            int errCode = add_chat_db(db, add->user, add->room, add->nTopics, add->topics, add->message);
+            if (errCode == 0) {
                 snprintf(shm->buf, shm->bufSize, "ok\n");
             } else {
-                snprintf(shm->buf, shm->bufSize, "err SYS_ERR: Failed to add data\n");
+                snprintf(shm->buf, shm->bufSize, "err SYS_ERR: %s\n", error_chat_db(db));
             }
             break;
         }
         case QUERY_CMD: {
-            printf("Server: Handling QUERY_CMD...\n");
             const QueryCmd *query = &cmd->query;
-            int result = query_chat_db(db,
-                                       query->room,
-                                       query->nTopics,
-                                       query->topics,
-                                       query->count,
-                                       query_iterator,
-                                       shm);
-            if (result == 0) {
-                snprintf(shm->buf, shm->bufSize, "ok\n");
+            size_t count;
+            int errCode = count_room_chat_db(db, query->room, &count);
+
+            if (errCode != 0 || count == 0) {
+                snprintf(shm->buf, shm->bufSize, "err BAD_ROOM: unknown room\n");
             } else {
-                snprintf(shm->buf, shm->bufSize, "err SYS_ERR: Query failed\n");
+                errCode = query_chat_db(db, query->room, query->nTopics, query->topics, query->count, query_iterator, shm);
+                if (errCode != 0) {
+                    snprintf(shm->buf, shm->bufSize, "err SYS_ERR: %s\n", error_chat_db(db));
+                } else {
+                    snprintf(shm->buf, shm->bufSize, "ok\n");
+                }
             }
             break;
         }
