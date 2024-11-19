@@ -315,6 +315,8 @@ do_chat_cmd(Chat *chat, const ChatCmd *cmd)
 
     printf("Client: Serializing command...\n");
     size_t serialized_size = serialize_chat_cmd(cmd, chat->shm->buf, chat->shm->bufSize);
+    printf("Client: Serialized command size: %zu\n", serialized_size);
+    printf("Client: Serialized data (first 64 bytes): %.*s\n", 64, chat->shm->buf);
 
     printf("Client: Sending command to server...\n");
     if (sem_post(&chat->shm->sems[0]) != 0) {

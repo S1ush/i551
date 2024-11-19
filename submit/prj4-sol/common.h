@@ -63,10 +63,10 @@ int query_iterator(const ChatInfo *result, void *ctx);
 size_t serialize_chat_cmd(const ChatCmd *cmd, char *buffer, size_t buffer_size);
 ChatCmd *deserialize_chat_cmd(const char *buffer, size_t buffer_size);
 // void receive_data(Shm *shm, void *buffer, size_t size);
-int serialize_add_cmd(const AddCmd *add, StrSpace *strSpace);
+int serialize_add_cmd(const AddCmd *add, char *buffer, size_t buffer_size);
 int serialize_query_cmd(const QueryCmd *query, StrSpace *strSpace);
 
-int deserialize_add_cmd(const char *input, AddCmd *addCmd);
+int deserialize_add_cmd(const char *buffer, AddCmd *add);
 int deserialize_query_cmd(const char *input, QueryCmd *queryCmd);
 
 

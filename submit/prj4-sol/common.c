@@ -438,10 +438,9 @@ size_t serialize_chat_cmd(const ChatCmd *cmd, char *buffer, size_t buffer_size) 
 
     switch (cmd->type) {
         case ADD_CMD:
-            if (serialize_add_cmd(&cmd->add, &strSpace) != 0) {
-                fprintf(stderr, "Failed to serialize AddCmd\n");
-                free_str_space(&strSpace);
-                return 0;
+            if (serialize_add_cmd(&cmd->add, buffer + offset, buffer_size - offset) != 0) {
+                fprintf(stderr, "Error: Failed to serialize AddCmd\n");
+                return -1;  // Handle serialization failure
             }
             break;
         case QUERY_CMD:
@@ -497,20 +496,41 @@ ChatCmd *deserialize_chat_cmd(const char *buffer, size_t buffer_size)
     return cmd;
 }
 
-int serialize_add_cmd(const AddCmd *add, StrSpace *strSpace) {
-    // Initialize string space
-    init_str_space(strSpace);
+int serialize_add_cmd(const AddCmd *add, char *buffer, size_t buffer_size) {
+    size_t offset = 0;
 
-    // Serialize AddCmd fields
-    append_sprintf_str_space(strSpace, 
-        "user=%s;room=%s;message=%s;nTopics=%zu;",
-        add->user, add->room, add->message, add->nTopics);
+    // Serialize user
+    size_t user_len = strlen(add->user) + 1;
+    if (offset + user_len > buffer_size) return 0;
+    memcpy(buffer + offset, add->user, user_len);
+    offset += user_len;
 
+    // Serialize room
+    size_t room_len = strlen(add->room) + 1;
+    if (offset + room_len > buffer_size) return 0;
+    memcpy(buffer + offset, add->room, room_len);
+    offset += room_len;
+
+    // Serialize message
+    size_t message_len = strlen(add->message) + 1;
+    if (offset + message_len > buffer_size) return 0;
+    memcpy(buffer + offset, add->message, message_len);
+    offset += message_len;
+
+    // Serialize number of topics
+    if (offset + sizeof(size_t) > buffer_size) return 0;
+    memcpy(buffer + offset, &add->nTopics, sizeof(size_t));
+    offset += sizeof(size_t);
+
+    // Serialize each topic
     for (size_t i = 0; i < add->nTopics; i++) {
-        append_sprintf_str_space(strSpace, "topic[%zu]=%s;", i, add->topics[i]);
+        size_t topic_len = strlen(add->topics[i]) + 1;
+        if (offset + topic_len > buffer_size) return 0;
+        memcpy(buffer + offset, add->topics[i], topic_len);
+        offset += topic_len;
     }
 
-    return 0;  // Serialization successful
+    return offset;
 }
 
 int serialize_query_cmd(const QueryCmd *query, StrSpace *strSpace) {
@@ -529,33 +549,60 @@ int serialize_query_cmd(const QueryCmd *query, StrSpace *strSpace) {
     return 0;  // Serialization successful
 }
 
-int deserialize_add_cmd(const char *input, AddCmd *addCmd) {
-    memset(addCmd, 0, sizeof(AddCmd));  // Initialize AddCmd structure
+int deserialize_add_cmd(const char *buffer, AddCmd *add) {
+    // memset(addCmd, 0, sizeof(AddCmd));  // Initialize AddCmd structure
 
-    char user[128], room[128];
-    size_t nTopics;
+    // char user[128], room[128];
+    // size_t nTopics;
 
-    if (sscanf(input, "user=%127[^;];room=%127[^;];", user, room) != 2) {
-        return -1;  // Parsing error
+    // if (sscanf(input, "user=%127[^;];room=%127[^;];", user, room) != 2) {
+    //     return -1;  // Parsing error
+    // }
+
+    // const char *message_start = strstr(input, "message=");
+    // if (!message_start) return -1;
+
+    // message_start += strlen("message=");
+    // const char *message_end = strchr(message_start, ';');
+    // if (!message_end) return -1;
+
+    // size_t message_len = message_end - message_start;
+    // char *message = malloc(message_len + 1);
+    // if (!message) return -1;
+
+    // strncpy(message, message_start, message_len);
+    // message[message_len] = '\0';
+
+    // addCmd->user = strdup(user);
+    // addCmd->room = strdup(room);
+    // addCmd->message = message;
+
+    // return 0;
+
+    size_t offset = 0;
+
+    // Deserialize user
+    add->user = strdup(buffer + offset);
+    offset += strlen(add->user) + 1;
+
+    // Deserialize room
+    add->room = strdup(buffer + offset);
+    offset += strlen(add->room) + 1;
+
+    // Deserialize message
+    add->message = strdup(buffer + offset);
+    offset += strlen(add->message) + 1;
+
+    // Deserialize number of topics
+    memcpy(&add->nTopics, buffer + offset, sizeof(size_t));
+    offset += sizeof(size_t);
+
+    // Deserialize each topic
+    add->topics = malloc(add->nTopics * sizeof(char *));
+    for (size_t i = 0; i < add->nTopics; i++) {
+        add->topics[i] = strdup(buffer + offset);
+        offset += strlen(add->topics[i]) + 1;
     }
-
-    const char *message_start = strstr(input, "message=");
-    if (!message_start) return -1;
-
-    message_start += strlen("message=");
-    const char *message_end = strchr(message_start, ';');
-    if (!message_end) return -1;
-
-    size_t message_len = message_end - message_start;
-    char *message = malloc(message_len + 1);
-    if (!message) return -1;
-
-    strncpy(message, message_start, message_len);
-    message[message_len] = '\0';
-
-    addCmd->user = strdup(user);
-    addCmd->room = strdup(room);
-    addCmd->message = message;
 
     return 0;
 }

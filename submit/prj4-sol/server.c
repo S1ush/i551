@@ -336,6 +336,14 @@ void process_command(Shm *shm, const ChatCmd *cmd, ChatDb *db) {
     switch (cmd->type) {
         case ADD_CMD: {
             const AddCmd *add = &cmd->add;
+
+            printf("Server: Received ADD_CMD\n");
+            printf("Server: User: %s, Room: %s, Message: %s\n", add->user, add->room, add->message);
+            printf("Server: Number of Topics: %zu\n", add->nTopics);
+            for (size_t i = 0; i < add->nTopics; i++) {
+                printf("Server: Topic[%zu]: %s\n", i, add->topics[i]);
+            }
+
             int errCode = add_chat_db(db, add->user, add->room, add->nTopics, add->topics, add->message);
             if (errCode == 0) {
                 snprintf(shm->buf, shm->bufSize, "ok\n");
