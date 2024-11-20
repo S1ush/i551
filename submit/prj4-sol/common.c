@@ -47,19 +47,19 @@ void send_data(Shm *shm, bool isServer, const void *data, size_t size) {
         return;
     }
     
-    fprintf(stderr, "%s: Waiting for readySem to send %zu bytes\n",
-            isServer ? "Server" : "Client", size);
+//     fprintf(stderr, "%s: Waiting for readySem to send %zu bytes\n",
+        //     isServer ? "Server" : "Client", size);
     
     sem_wait(&shm->readySem);
     
-    fprintf(stderr, "%s: Got readySem, copying data\n",
-            isServer ? "Server" : "Client");
+//     fprintf(stderr, "%s: Got readySem, copying data\n",
+        //     isServer ? "Server" : "Client");
     
     memcpy(shm->buf, data, size);
     
-    fprintf(stderr, "%s: Posting %s\n",
-            isServer ? "Server" : "Client",
-            isServer ? "serverDataSem" : "clientDataSem");
+//     fprintf(stderr, "%s: Posting %s\n",
+        //     isServer ? "Server" : "Client",
+        //     isServer ? "serverDataSem" : "clientDataSem");
     
     sem_post(isServer ? &shm->serverDataSem : &shm->clientDataSem);
 }
@@ -70,20 +70,20 @@ void receive_data(Shm *shm, bool isServer, void *data, size_t size) {
         return;
     }
     
-    fprintf(stderr, "%s: Waiting for %s to receive %zu bytes\n",
-            isServer ? "Server" : "Client",
-            isServer ? "clientDataSem" : "serverDataSem",
-            size);
+//     fprintf(stderr, "%s: Waiting for %s to receive %zu bytes\n",
+        //     isServer ? "Server" : "Client",
+        //     isServer ? "clientDataSem" : "serverDataSem",
+        //     size);
     
     sem_wait(isServer ? &shm->clientDataSem : &shm->serverDataSem);
     
-    fprintf(stderr, "%s: Got data sem, copying data\n",
-            isServer ? "Server" : "Client");
+//     fprintf(stderr, "%s: Got data sem, copying data\n",
+        //     isServer ? "Server" : "Client");
     
     memcpy(data, shm->buf, size);
     
-    fprintf(stderr, "%s: Posting readySem\n",
-            isServer ? "Server" : "Client");
+//     fprintf(stderr, "%s: Posting readySem\n",
+        //     isServer ? "Server" : "Client");
     
     sem_post(&shm->readySem);
 }

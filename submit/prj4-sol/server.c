@@ -33,7 +33,7 @@ do_server(const char *dbPath, Shm *shm)
   chatDb = result.chatDb;
   server_loop(chatDb, shm);
   
-  if (chatDb) free_chat_db(chatDb);
+  // if (chatDb) free_chat_db(chatDb);
   exit(0);
 
 }
