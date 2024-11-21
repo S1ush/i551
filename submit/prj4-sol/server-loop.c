@@ -284,7 +284,7 @@ static int query_iterator(const ChatInfo *info, void *data) {
     send_data(server->shm, true, &hdr, sizeof(Hdr));
     send_data(server->shm, true, output, hdr.nBytes);
     
-    // free(output);
+    free(output);
     // fprintf(stderr, "Server: Result sent\n");
     return 0;
 }

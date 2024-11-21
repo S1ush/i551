@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <sys/wait.h> // for waitpid
 
+
 //uncomment next line to turn on tracing; use TRACE() with printf-style args
 //#define DO_TRACE
 #include <trace.h>
@@ -134,4 +135,16 @@ pid_t
 chat_server_pid(const Chat *chat)
 {
   return chat->serverPid;
+}
+
+void cleanup(Chat *chat, Shm *shm) {
+    if (chat) {
+        free_chat(chat);
+    }
+    if (shm) {
+        sem_destroy(&shm->readySem);
+        sem_destroy(&shm->clientDataSem);
+        sem_destroy(&shm->serverDataSem);
+        munmap(shm, shm->shmSize);
+    }
 }

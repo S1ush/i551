@@ -19,12 +19,12 @@ create_shared_memory(size_t size)
   shm->bufSize = size - offsetof(Shm, buf);
 
   // Initialize semaphores with pshared=1 for inter-process sharing
-  if (sem_init(&shm->readySem, 1, 1) < 0 ||      // Start ready for writing
-      sem_init(&shm->clientDataSem, 1, 0) < 0 ||  // No client data initially
-      sem_init(&shm->serverDataSem, 1, 0) < 0) {  // No server data initially
+  if (sem_init(&shm->readySem, 1, 1) < 0 ||
+    sem_init(&shm->clientDataSem, 1, 0) < 0 ||
+    sem_init(&shm->serverDataSem, 1, 0)) {
     munmap(shm, size);
     return NULL;
-  }
+}
 
   return shm;
 }
