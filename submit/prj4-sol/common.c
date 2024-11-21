@@ -42,48 +42,61 @@ destroy_shared_memory(Shm *shm, size_t size)
 }
 
 void send_data(Shm *shm, bool isServer, const void *data, size_t size) {
-    if (!shm || !data || size > shm->bufSize) {
+    if (!shm || !data || size == 0) {
         fprintf(stderr, "Send error: Invalid parameters\n");
         return;
     }
-    
-//     fprintf(stderr, "%s: Waiting for readySem to send %zu bytes\n",
-        //     isServer ? "Server" : "Client", size);
-    
-    sem_wait(&shm->readySem);
-    
-//     fprintf(stderr, "%s: Got readySem, copying data\n",
-        //     isServer ? "Server" : "Client");
-    
-    memcpy(shm->buf, data, size);
-    
-//     fprintf(stderr, "%s: Posting %s\n",
-        //     isServer ? "Server" : "Client",
-        //     isServer ? "serverDataSem" : "clientDataSem");
-    
-    sem_post(isServer ? &shm->serverDataSem : &shm->clientDataSem);
+
+    // Send data in chunks
+    const char *dataPtr = data;
+    size_t remaining = size;
+    size_t chunkSize = shm->bufSize;
+
+    while (remaining > 0) {
+        // Calculate size of this chunk
+        size_t currentChunk = (remaining < chunkSize) ? remaining : chunkSize;
+
+        // Wait for buffer to be available
+        sem_wait(&shm->readySem);
+
+        // Copy chunk
+        memcpy(shm->buf, dataPtr, currentChunk);
+
+        // Signal data is available
+        sem_post(isServer ? &shm->serverDataSem : &shm->clientDataSem);
+
+        // Update pointers and remaining size
+        dataPtr += currentChunk;
+        remaining -= currentChunk;
+    }
 }
 
 void receive_data(Shm *shm, bool isServer, void *data, size_t size) {
-    if (!shm || !data || size > shm->bufSize) {
+    if (!shm || !data || size == 0) {
         fprintf(stderr, "Receive error: Invalid parameters\n");
         return;
     }
-    
-//     fprintf(stderr, "%s: Waiting for %s to receive %zu bytes\n",
-        //     isServer ? "Server" : "Client",
-        //     isServer ? "clientDataSem" : "serverDataSem",
-        //     size);
-    
-    sem_wait(isServer ? &shm->clientDataSem : &shm->serverDataSem);
-    
-//     fprintf(stderr, "%s: Got data sem, copying data\n",
-        //     isServer ? "Server" : "Client");
-    
-    memcpy(data, shm->buf, size);
-    
-//     fprintf(stderr, "%s: Posting readySem\n",
-        //     isServer ? "Server" : "Client");
-    
-    sem_post(&shm->readySem);
+
+    // Receive data in chunks
+    char *dataPtr = data;
+    size_t remaining = size;
+    size_t chunkSize = shm->bufSize;
+
+    while (remaining > 0) {
+        // Calculate size of this chunk
+        size_t currentChunk = (remaining < chunkSize) ? remaining : chunkSize;
+
+        // Wait for data to be available
+        sem_wait(isServer ? &shm->clientDataSem : &shm->serverDataSem);
+
+        // Copy chunk
+        memcpy(dataPtr, shm->buf, currentChunk);
+
+        // Signal buffer is available
+        sem_post(&shm->readySem);
+
+        // Update pointers and remaining size
+        dataPtr += currentChunk;
+        remaining -= currentChunk;
+    }
 }
