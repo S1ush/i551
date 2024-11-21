@@ -69,46 +69,77 @@ static void send_add_req(Client *client, const AddCmd *cmd) {
 static void receive_res(Client *client) {
     FILE *out = client->out;
     FILE *err = client->err;
-    bool didOk = false;
-
-    // fprintf(stderr, "Client: Starting to receive response\n");
-
-    // Read header
+    char *data = NULL;
+    
+    // fprintf(stderr, "Client: Starting response handling\n");
+    
+    // Get initial response
     Hdr hdr;
     receive_data(client->shm, false, &hdr, sizeof(Hdr));
-    
-    // fprintf(stderr, "Client: Received header - status=%d, nBytes=%d\n", 
+    // fprintf(stderr, "Client: Got initial header - status=%d, nBytes=%d\n", 
             // hdr.status, hdr.nBytes);
 
-    // Read data if present
-    char *data = NULL;
+    // Handle error response
+    if (hdr.status != OK_STATUS) {
+        if (hdr.nBytes > 0) {
+            data = malloc(hdr.nBytes + 1);
+            if (data) {
+                receive_data(client->shm, false, data, hdr.nBytes);
+                data[hdr.nBytes] = '\0';
+                const char *errStatus = 
+                    (const char *[]){ "", "SYS_ERR: ", "FATAL_ERR: " }[hdr.status - 1];
+                fprintf(err, ERROR "%s%s\n", errStatus, data);
+                fflush(err);
+                free(data);
+            }
+        }
+        return;
+    }
+
+    // Print OK
+    fprintf(out, OKAY);
+    fflush(out);
+    // fprintf(stderr, "Client: Printed OK\n");
+
+    // For ADD command, we're done after an empty response
+    if (hdr.nBytes == 0) {
+        // fprintf(stderr, "Client: Empty response (ADD command), finishing\n");
+        return;
+    }
+
+    // Read initial dummy data for QUERY
     if (hdr.nBytes > 0) {
+        data = malloc(hdr.nBytes);
+        if (data) {
+            receive_data(client->shm, false, data, hdr.nBytes);
+            free(data);
+        }
+    }
+
+    // Process query results
+    // fprintf(stderr, "Client: Processing query results\n");
+    while (1) {
+        receive_data(client->shm, false, &hdr, sizeof(Hdr));
+        // fprintf(stderr, "Client: Got result header - status=%d, nBytes=%d\n", 
+                // hdr.status, hdr.nBytes);
+
+        if (hdr.nBytes == 0) {
+            // fprintf(stderr, "Client: End of results\n");
+            break;
+        }
+
         data = malloc(hdr.nBytes + 1);
         if (data) {
-            // fprintf(stderr, "Client: Reading %d bytes of data\n", hdr.nBytes);
             receive_data(client->shm, false, data, hdr.nBytes);
             data[hdr.nBytes] = '\0';
-            // fprintf(stderr, "Client: Received data='%s'\n", data);
-        }
-    }
-
-    // Process response
-    if (hdr.status != 0) {
-        const char *errStatus = 
-            (const char *[]){ "", "SYS_ERR: ", "FATAL_ERR: " }[hdr.status - 1];
-        fprintf(err, ERROR "%s%s\n", errStatus, data ? data : "");
-        fflush(err);
-    } else {
-        fprintf(out, OKAY);
-        fflush(out);
-        if (data) {
             fprintf(out, "%s", data);
             fflush(out);
+            free(data);
+            // fprintf(stderr, "Client: Processed result\n");
         }
     }
 
-    if (data) free(data);
-    // fprintf(stderr, "Client: Finished receiving response\n");
+    // fprintf(stderr, "Client: All results processed\n");
 }
 
 static void send_query_req(Client *client, const QueryCmd *cmd) {
