@@ -125,11 +125,8 @@ static void do_add_cmd(Server *server, const Hdr *cmdHdr) {
 }
 
 static void do_query_cmd(Server *server, const Hdr *cmdHdr) {
-    // fprintf(stderr, "Server: Starting QUERY command processing\n");
-    
     char *buffer = malloc(cmdHdr->nBytes);
     if (!buffer) {
-        fprintf(stderr, "Server: Memory allocation failed in QUERY\n");
         const char *errMsg = "Memory allocation failed";
         Hdr respHdr = {
             .hdrType = 1,
@@ -143,10 +140,36 @@ static void do_query_cmd(Server *server, const Hdr *cmdHdr) {
 
     receive_data(server->shm, true, buffer, cmdHdr->nBytes);
 
+    // Validate room
     const char *room = buffer;
-    // fprintf(stderr, "Server: Room='%s'\n", room);
+    size_t count;
+    int errCode = count_room_chat_db(server->chatDb, room, &count);
+    if (errCode != 0) {
+        const char *errMsg = error_chat_db(server->chatDb);
+        Hdr respHdr = {
+            .hdrType = 1,
+            .status = SYS_ERR_STATUS,
+            .nBytes = strlen(errMsg)
+        };
+        send_data(server->shm, true, &respHdr, sizeof(Hdr));
+        send_data(server->shm, true, errMsg, respHdr.nBytes);
+        free(buffer);
+        return;
+    }
+    else if (count == 0) {
+        const char *errMsg = "BAD_ROOM: unknown room";
+        Hdr respHdr = {
+            .hdrType = 1,
+            .status = USER_ERR_STATUS,
+            .nBytes = strlen(errMsg)
+        };
+        send_data(server->shm, true, &respHdr, sizeof(Hdr));
+        send_data(server->shm, true, errMsg, respHdr.nBytes);
+        free(buffer);
+        return;
+    }
 
-    // For empty topics list
+    // Parse and validate topics
     const char *topics[cmdHdr->nTopics];
     if (cmdHdr->nTopics > 0) {
         const char *p = room + strlen(room) + 1;
@@ -156,10 +179,37 @@ static void do_query_cmd(Server *server, const Hdr *cmdHdr) {
                 topics[i]++;
             }
             p += strlen(p) + 1;
+
+            // Validate each topic
+            errCode = count_topic_chat_db(server->chatDb, topics[i], &count);
+            if (errCode != 0) {
+                const char *errMsg = error_chat_db(server->chatDb);
+                Hdr respHdr = {
+                    .hdrType = 1,
+                    .status = SYS_ERR_STATUS,
+                    .nBytes = strlen(errMsg)
+                };
+                send_data(server->shm, true, &respHdr, sizeof(Hdr));
+                send_data(server->shm, true, errMsg, respHdr.nBytes);
+                free(buffer);
+                return;
+            }
+            else if (count == 0) {
+                const char *errMsg = "BAD_TOPIC: unknown topic";
+                Hdr respHdr = {
+                    .hdrType = 1,
+                    .status = USER_ERR_STATUS,
+                    .nBytes = strlen(errMsg)
+                };
+                send_data(server->shm, true, &respHdr, sizeof(Hdr));
+                send_data(server->shm, true, errMsg, respHdr.nBytes);
+                free(buffer);
+                return;
+            }
         }
     }
 
-    // Send initial message
+    // Send initial OK message
     Hdr respHdr = {
         .hdrType = 1,
         .status = OK_STATUS,
@@ -169,20 +219,24 @@ static void do_query_cmd(Server *server, const Hdr *cmdHdr) {
     send_data(server->shm, true, "", 1);  // Send dummy data
 
     // Execute query
-    // fprintf(stderr, "Server: Executing query\n");
-    int errCode = query_chat_db(server->chatDb, room, cmdHdr->nTopics, 
-                               cmdHdr->nTopics > 0 ? topics : NULL, 
-                               cmdHdr->count, query_iterator, server);
+    errCode = query_chat_db(server->chatDb, room, cmdHdr->nTopics,
+                           cmdHdr->nTopics > 0 ? topics : NULL,
+                           cmdHdr->count, query_iterator, server);
 
-    // Send final empty message
-    // fprintf(stderr, "Server: Sending end marker\n");
-    respHdr.nBytes = 0;
-    send_data(server->shm, true, &respHdr, sizeof(Hdr));
+    if (errCode != 0) {
+        const char *errMsg = error_chat_db(server->chatDb);
+        respHdr.status = SYS_ERR_STATUS;
+        respHdr.nBytes = strlen(errMsg);
+        send_data(server->shm, true, &respHdr, sizeof(Hdr));
+        send_data(server->shm, true, errMsg, respHdr.nBytes);
+    } else {
+        // Send final empty message
+        respHdr.nBytes = 0;
+        send_data(server->shm, true, &respHdr, sizeof(Hdr));
+    }
 
     free(buffer);
-    // fprintf(stderr, "Server: Query complete\n");
 }
-
 static int query_iterator(const ChatInfo *info, void *data) {
     Server *server = data;
     if (!info || !server) return 0;
