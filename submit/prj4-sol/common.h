@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
+#include "chat.h"
 
 // declarations common between server and client
 #define ERROR "err "
@@ -40,6 +41,8 @@ typedef struct {
 
 void send_data(Shm *shm, bool isServer, const void *data, size_t size);
 void receive_data(Shm *shm, bool isServer, void *data, size_t size);
+void destroy_shared_memory(Shm *shm, size_t size);
+void cleanup(Chat *chat, Shm *shm);
 
 // Status codes
 typedef enum {

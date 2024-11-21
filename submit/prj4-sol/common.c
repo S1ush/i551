@@ -40,6 +40,17 @@ destroy_shared_memory(Shm *shm, size_t size)
   // Unmap shared memory
   munmap(shm, size);
 }
+void cleanup(Chat *chat, Shm *shm) {
+    if (chat) {
+        free_chat(chat);
+    }
+    if (shm) {
+        sem_destroy(&shm->readySem);
+        sem_destroy(&shm->clientDataSem);
+        sem_destroy(&shm->serverDataSem);
+        munmap(shm, shm->shmSize);
+    }
+}
 
 void send_data(Shm *shm, bool isServer, const void *data, size_t size) {
     if (!shm || !data || size == 0) {
@@ -100,3 +111,4 @@ void receive_data(Shm *shm, bool isServer, void *data, size_t size) {
         remaining -= currentChunk;
     }
 }
+

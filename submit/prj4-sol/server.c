@@ -28,7 +28,7 @@ do_server(const char *dbPath, Shm *shm)
   if (make_chat_db(dbPath, &result) != 0) {
     // Handle error
     fprintf(stderr, "Error: Cannot initialize chat database.\n");
-    cleanup(NULL, shm, NULL);  // Partial cleanup
+    cleanup(NULL, shm);  // Partial cleanup
     exit(1);
   }
   

@@ -137,14 +137,4 @@ chat_server_pid(const Chat *chat)
   return chat->serverPid;
 }
 
-void cleanup(Chat *chat, Shm *shm) {
-    if (chat) {
-        free_chat(chat);
-    }
-    if (shm) {
-        sem_destroy(&shm->readySem);
-        sem_destroy(&shm->clientDataSem);
-        sem_destroy(&shm->serverDataSem);
-        munmap(shm, shm->shmSize);
-    }
-}
+
