@@ -89,8 +89,9 @@ main(int argc, const char *argv[])
   // verify open of chat-db
   MakeChatDbResult result;
   if (make_chat_db(dbPath, &result) != 0) {
-    fatal("cannot open db at %s: %s", dbPath, result.err);
+      fatal("cannot open db at %s: %s", dbPath, result.err);
   }
+  ChatDb *chatDb = result.chatDb; // Store the initialized database handle
   free_chat_db(result.chatDb);
 
   int sockFd = openServerSocket(port);

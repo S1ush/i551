@@ -48,9 +48,11 @@ struct _Chat {
 // Auxiliary function to send a command to the server
 static void send_cmd(Chat *chat, const ChatCmd *cmd) {
     char buffer[1024];
-    int len = snprintf(buffer, sizeof(buffer), "%d %s %s %s\n",
+    snprintf(buffer, sizeof(buffer), "%d %s %s %s\n",
                       cmd->type, cmd->add.user, cmd->add.room, cmd->add.message);
-    write(chat->sockFd, buffer, len);
+    // printf("DEBUG: Sending command to server: type=%d, user=%s, room=%s, message=%s\n",
+       cmd->type, cmd->add.user, cmd->add.room, cmd->add.message);
+    write(chat->sockFd, buffer, strlen(buffer));
     }
 
 // Thread to handle incoming messages from the server
@@ -108,18 +110,23 @@ make_chat(const ChatParams *params)
 {
   //TODO
   // return NULL;
-  int sockFd = socket(AF_INET, SOCK_STREAM, 0);
+    int sockFd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockFd < 0) {
-        fprintf(params->err, ERROR "Failed to create socket\n");
+        // perror("DEBUG: Error creating socket");
+        fprintf(params->err, "err Failed to create socket\n");
         return NULL;
+    // } else {
+    //     printf("DEBUG: Socket created successfully\n");
     }
 
     struct sockaddr_in serv_addr;
     struct hostent *server = gethostbyname(params->host);
     if (!server) {
-        fprintf(params->err, ERROR "Host not found\n");
+        fprintf(params->err, "err Host not found: %s\n", params->host);
         close(sockFd);
         return NULL;
+    // } else {
+        // printf("DEBUG: Resolved host %s\n", params->host);
     }
 
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -128,9 +135,12 @@ make_chat(const ChatParams *params)
     serv_addr.sin_port = htons(params->port);
 
     if (connect(sockFd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
-        fprintf(params->err, ERROR "Failed to connect to server\n");
+        // perror("DEBUG: Error connecting to server");
+        fprintf(params->err, "err Failed to connect to server\n");
         close(sockFd);
         return NULL;
+    // } else {
+        // printf("DEBUG: Connected to server at %s:%d\n", params->host, params->port);
     }
 
     Chat *chat = malloc(sizeof(Chat));

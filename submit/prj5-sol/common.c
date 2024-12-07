@@ -17,10 +17,10 @@
 
 /** Write a message to a socket */
 int write_message(int sockFd, const char *message) {
-    size_t len = strlen(message);
-    ssize_t written = write(sockFd, message, len);
+    // printf("DEBUG: Writing to socket FD %d: %s\n", sockFd, message);
+    ssize_t written = write(sockFd, message, strlen(message));
     if (written < 0) {
-        perror("Error writing to socket");
+        // perror("DEBUG: Error writing to socket");
         return -1;
     }
     return 0;
@@ -30,10 +30,11 @@ int write_message(int sockFd, const char *message) {
 int read_message(int sockFd, char *buffer, size_t bufferSize) {
     ssize_t bytesRead = read(sockFd, buffer, bufferSize - 1);
     if (bytesRead < 0) {
-        perror("Error reading from socket");
+        perror("DEBUG: Error reading from socket");
         return -1;
     }
     buffer[bytesRead] = '\0';
+    // printf("DEBUG: Read from socket FD %d: %s\n", sockFd, buffer);
     return 0;
 }
 
@@ -60,3 +61,14 @@ void close_socket(int sockFd) {
         close(sockFd);
     }
 }
+
+
+
+// void write_header(const Hdr *hdr, FILE *out) {
+//     fprintf(out, "%d %zu %zu %zu\n", hdr->cmdType, hdr->count, hdr->nTopics, hdr->nBytes);
+//     fflush(out);
+// }
+
+// int read_header(Hdr *hdr, FILE *in) {
+//     return fscanf(in, "%d %zu %zu %zu", &hdr->cmdType, &hdr->count, &hdr->nTopics, &hdr->nBytes) == 4;
+// }

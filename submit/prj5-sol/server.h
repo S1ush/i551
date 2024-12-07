@@ -11,5 +11,7 @@
  *  connection or by using select (the former is recommended).
  */
 void do_serve(int serverSockFd, const char *dbPath);
+void broadcast_message(const char *room, const char *message, int senderFd);
+void send_room_history(int clientFd, ChatDb *chatDb, const char *room);
 
 #endif //#ifndef SERVER_H_

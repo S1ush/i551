@@ -1,11 +1,12 @@
-Team Member 1 Name:	XXX
-Team Member 1 B-Number:	XXX
-Team Member 1 Email:	XXX
+Team Member 1 Name:	Yash Bhole
+Team Member 1 B-Number:	B01032961
+Team Member 1 Email:	ybhole@binghamton.edu
 
-Team Member 2 Name:	XXX
-Team Member 2 B-Number:	XXX
-Team Member 2 Email:	XXX
+Team Member 2 Name:	Shuchi Kundaliya
+Team Member 2 B-Number:	B01037159
+Team Member 2 Email:	skundaliya@binghamton.edu
 
 
+The chat application communicates using a custom text-based protocol over TCP sockets. The client sends commands to the server, and the server processes these commands ADD, QUERY and END. For valid commands, the server sends a response starting with "OK" or the requested data. For errors, the server responds with "ERR <error_code> <error_message>".
 
 

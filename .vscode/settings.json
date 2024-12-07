@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.php": "php",
+        ".php": "php",
+        ".json": "json",
+        "system_error": "c"
+    }
+}
